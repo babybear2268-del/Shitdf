@@ -70,14 +70,18 @@ fun PhotoCardScanDialog(
     ) { uri: Uri? ->
         if (uri != null) {
             selectedImageUri = uri
-            try {
-                context.contentResolver.openInputStream(uri)?.use { stream ->
-                    val bmp = BitmapFactory.decodeStream(stream)
-                    selectedBitmap = bmp
+            isAnalyzing = true
+            coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    val bmp = context.contentResolver.openInputStream(uri)?.use { stream ->
+                        BitmapFactory.decodeStream(stream)
+                    }
                     if (bmp != null) {
-                        isAnalyzing = true
-                        coroutineScope.launch {
-                            val result = GeminiCardScanner.analyzeCardPhoto(bmp)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            selectedBitmap = bmp
+                        }
+                        val result = GeminiCardScanner.analyzeCardPhoto(bmp)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                             extractedData = result
                             cardNumber = result.cardNumber
                             expMonth = result.expMonth
@@ -88,10 +92,16 @@ fun PhotoCardScanDialog(
                             serialRef = result.serialRef
                             isAnalyzing = false
                         }
+                    } else {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            isAnalyzing = false
+                        }
+                    }
+                } catch (e: Exception) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        isAnalyzing = false
                     }
                 }
-            } catch (e: Exception) {
-                isAnalyzing = false
             }
         }
     }

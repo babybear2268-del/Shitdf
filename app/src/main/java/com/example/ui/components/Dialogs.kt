@@ -35,7 +35,6 @@ fun AddEditProfileDialog(
     onDismiss: () -> Unit
 ) {
     var targetUrl by remember { mutableStateOf(existingProfile?.targetPortalUrl ?: "") }
-    var selector by remember { mutableStateOf(existingProfile?.balanceSelector ?: "") }
     var firstName by remember { mutableStateOf(existingProfile?.holderFirstName ?: "") }
     var lastName by remember { mutableStateOf(existingProfile?.holderLastName ?: "") }
     var email by remember { mutableStateOf(existingProfile?.holderEmail ?: "") }
@@ -89,7 +88,6 @@ fun AddEditProfileDialog(
                         onClick = {
                             val generated = CanadianIdentityGenerator.generate(targetUrl)
                             targetUrl = generated.targetPortalUrl
-                            selector = generated.balanceSelector
                             firstName = generated.holderFirstName
                             lastName = generated.holderLastName
                             email = generated.holderEmail
@@ -100,10 +98,7 @@ fun AddEditProfileDialog(
                             state = generated.billingState
                             zip = generated.billingZip
                             country = generated.billingCountry
-                            cardNumber = generated.cardNumber
-                            expMonth = generated.cardExpMonth
-                            expYear = generated.cardExpYear
-                            cvc = generated.cardCvc
+                            // Card info is not auto-filled when generating profile user info
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = HighDensitySurfaceVariant),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
@@ -111,7 +106,7 @@ fun AddEditProfileDialog(
                     ) {
                         Icon(Icons.Default.Casino, contentDescription = null, tint = AccentAmber, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("AUTO-GEN CANADIAN", style = MaterialTheme.typography.labelSmall.copy(color = TextPrimary))
+                        Text("AUTO-GEN USER INFO", style = MaterialTheme.typography.labelSmall.copy(color = TextPrimary))
                     }
                 }
 
@@ -142,24 +137,21 @@ fun AddEditProfileDialog(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         val presets = listOf(
-                            Triple("Joker Card", "https://cardholder.jokercard.ca/", ".balance-amount, #cardBalance, .card-details"),
-                            Triple("MyPrepaidCenter", "https://www.myprepaidcenter.com/login/card", ".card-balance, #balance"),
-                            Triple("Vanilla Gift", "https://www.vanillagift.com/balance", ".balance-amount, .card-balance"),
-                            Triple("PrepaidCardStatus", "https://www.prepaidcardstatus.com", "#balanceVal, .account-total"),
-                            Triple("PerfectGift", "https://www.perfectgift.com/check-balance", ".balance-value, .card-details"),
-                            Triple("Cardholderplace", "https://www.cardholderplace.com", "#cardBalance, .balance"),
-                            Triple("PrepaidDigital", "https://www.prepaiddigitalsolutions.com", ".amount, .card-balance"),
-                            Triple("GiftCardMall", "https://www.giftcardmall.com/check-balance", ".balance-info, #balance")
+                            Pair("Joker Card", "https://cardholder.jokercard.ca/"),
+                            Pair("MyPrepaidCenter", "https://www.myprepaidcenter.com/login/card"),
+                            Pair("Vanilla Gift", "https://www.vanillagift.com/balance"),
+                            Pair("PrepaidCardStatus", "https://www.prepaidcardstatus.com"),
+                            Pair("PerfectGift", "https://www.perfectgift.com/check-balance"),
+                            Pair("Cardholderplace", "https://www.cardholderplace.com"),
+                            Pair("PrepaidDigital", "https://www.prepaiddigitalsolutions.com"),
+                            Pair("GiftCardMall", "https://www.giftcardmall.com/check-balance")
                         )
 
-                        presets.forEach { (name, url, sel) ->
+                        presets.forEach { (name, url) ->
                             val isSelected = targetUrl == url
                             Surface(
                                 onClick = {
                                     targetUrl = url
-                                    if (selector.isBlank() || presets.any { it.third == selector }) {
-                                        selector = sel
-                                    }
                                 },
                                 color = if (isSelected) PrimaryCyan.copy(alpha = 0.2f) else HighDensitySurfaceVariant,
                                 shape = RoundedCornerShape(4.dp),
@@ -178,13 +170,6 @@ fun AddEditProfileDialog(
                             }
                         }
                     }
-
-                    OutlinedTextField(
-                        value = selector,
-                        onValueChange = { selector = it },
-                        label = { Text("Balance DOM Selector", color = TextSecondary) },
-                        modifier = Modifier.fillMaxWidth().testTag("profile_input_selector")
-                    )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
                             value = firstName,
@@ -293,7 +278,7 @@ fun AddEditProfileDialog(
                             val prof = CardProfileEntity(
                                 id = existingProfile?.id ?: "PRF-CA-${UUID.randomUUID().toString().take(4).uppercase()}",
                                 targetPortalUrl = targetUrl,
-                                balanceSelector = selector,
+                                balanceSelector = existingProfile?.balanceSelector ?: "",
                                 holderFirstName = firstName,
                                 holderLastName = lastName,
                                 holderEmail = email,
@@ -481,7 +466,7 @@ fun JsonManifestDialog(
     onImportJson: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var textState by remember { mutableStateOf(jsonText) }
+    var textState by remember(jsonText) { mutableStateOf(jsonText) }
 
     Dialog(
         onDismissRequest = onDismiss,

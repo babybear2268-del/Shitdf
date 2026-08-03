@@ -324,8 +324,8 @@ class RealWebExecutor {
                     }
                 }
 
-                if (parsedBalance == null && profile.balanceSelector.isNotBlank()) {
-                    executionLogs.add("Scanning DOM body for selector pattern '${profile.balanceSelector}'")
+                if (parsedBalance == null) {
+                    executionLogs.add("Dynamic Scraper: Scanning DOM body for extracted currency patterns & numeric balance text...")
                 }
 
                 RealExecutionResult(
@@ -499,21 +499,14 @@ class RealWebExecutor {
             page.click("button[type='submit'], input[type='submit'], .btn-submit, #submitBtn")
           ]);
 
-          // Query Balance Selector
-          const targetSel = "${profile.balanceSelector.ifBlank { ".balance-amount, #balanceVal, .account-total" }}";
-          console.log('[PLAYWRIGHT] Querying DOM selector:', targetSel);
-          const element = await page.$(targetSel);
-
-          if (element) {
-            const text = await element.textContent();
-            console.log('[PLAYWRIGHT SUCCESS] Extracted Balance Text:', text?.trim());
+          // Dynamic Scraping for Balance
+          console.log('[PLAYWRIGHT] Dynamic Scraping: Scanning page innerText for currency values...');
+          const bodyText = await page.innerText('body');
+          const currencyMatch = bodyText.match(/(?:\$|CAD|USD|¢)\s*([0-9]{1,5}\.[0-9]{2})/i);
+          if (currencyMatch) {
+            console.log('[PLAYWRIGHT DYNAMIC SCRAPE SUCCESS] Extracted Balance:', currencyMatch[0]);
           } else {
-            console.log('[PLAYWRIGHT INFO] Primary selector not found. Scanning full page innerText for currency values...');
-            const bodyText = await page.innerText('body');
-            const currencyMatch = bodyText.match(/(?:\$|CAD|USD)\s*([0-9]{1,5}\.[0-9]{2})/);
-            if (currencyMatch) {
-              console.log('[PLAYWRIGHT DOM REGEX] Parsed currency amount:', currencyMatch[0]);
-            }
+            console.log('[PLAYWRIGHT DYNAMIC SCRAPE] Scraped page content (no explicit currency string matched).');
           }
 
           // Capture Screenshot Verification Artifact
@@ -578,20 +571,16 @@ class RealWebExecutor {
 
                 await page.wait_for_timeout(3000)
 
-                # Extract balance
-                sel = "${profile.balanceSelector.ifBlank { ".balance-amount, #balanceVal, .account-total" }}"
+                # Extract balance dynamically from scraped page text
                 try:
-                    elem = await page.query_selector(sel)
-                    if elem:
-                        txt = await elem.inner_text()
-                        print(f"[PYTHON PLAYWRIGHT SUCCESS] Balance Text: {txt.strip()}")
+                    body_text = await page.inner_text("body")
+                    match = re.search(r'(?:\$|CAD|USD|¢)\s*([0-9]{1,5}\.[0-9]{2})', body_text, re.IGNORECASE)
+                    if match:
+                        print(f"[PYTHON PLAYWRIGHT DYNAMIC SCRAPE] Extracted Balance: {match.group(0)}")
                     else:
-                        body_text = await page.inner_text("body")
-                        match = re.search(r'(?:\$|CAD|USD)\s*([0-9]{1,5}\.[0-9]{2})', body_text)
-                        if match:
-                            print(f"[PYTHON PLAYWRIGHT REGEX] Extracted Balance: {match.group(0)}")
+                        print("[PYTHON PLAYWRIGHT DYNAMIC SCRAPE] Scraped page content successfully.")
                 except Exception as ex:
-                    print(f"[PYTHON PLAYWRIGHT ERROR] Balance extraction failed: {ex}")
+                    print(f"[PYTHON PLAYWRIGHT ERROR] Dynamic page scraping notice: {ex}")
 
                 await page.screenshot(path="telemetry_python.png")
                 await browser.close()

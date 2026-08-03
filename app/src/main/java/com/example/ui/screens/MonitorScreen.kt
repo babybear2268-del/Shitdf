@@ -27,6 +27,8 @@ import com.example.data.CardProfileEntity
 import com.example.data.PaymentCardEntity
 import com.example.data.TelemetryLogEntity
 import com.example.data.WorkerJobEntity
+import com.example.network.OrchestratedCardStatusSummaryDto
+import com.example.ui.UiState
 import com.example.ui.components.PlaywrightLiveView
 import com.example.ui.theme.*
 import androidx.compose.runtime.mutableStateOf
@@ -41,6 +43,8 @@ fun MonitorScreen(
     cards: List<PaymentCardEntity>,
     recentLogs: List<TelemetryLogEntity>,
     isDeploying: Boolean,
+    backendCardStatusState: UiState<OrchestratedCardStatusSummaryDto> = UiState.Idle,
+    onSyncBackendStatus: () -> Unit = {},
     onDeployNewManifest: () -> Unit,
     onJobClick: (WorkerJobEntity) -> Unit,
     onClearJobs: () -> Unit,
@@ -85,20 +89,37 @@ fun MonitorScreen(
                         )
                     }
 
-                    Button(
-                        onClick = onDeployNewManifest,
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryCyan),
-                        enabled = !isDeploying,
-                        modifier = Modifier.testTag("monitor_deploy_button")
-                    ) {
-                        if (isDeploying) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = OnPrimaryDark, strokeWidth = 2.dp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("DEPLOYING...", color = OnPrimaryDark, fontWeight = FontWeight.Bold)
-                        } else {
-                            Icon(Icons.Default.RocketLaunch, contentDescription = null, tint = OnPrimaryDark, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("DISPATCH ALL", color = OnPrimaryDark, fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        IconButton(
+                            onClick = onSyncBackendStatus,
+                            modifier = Modifier
+                                .background(HighDensitySurfaceVariant, RoundedCornerShape(8.dp))
+                                .border(1.dp, HighDensityBorder, RoundedCornerShape(8.dp))
+                                .testTag("sync_backend_status_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Sync,
+                                contentDescription = "Sync Retrofit Status",
+                                tint = PrimaryCyan,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        Button(
+                            onClick = onDeployNewManifest,
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryCyan),
+                            enabled = !isDeploying,
+                            modifier = Modifier.testTag("monitor_deploy_button")
+                        ) {
+                            if (isDeploying) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = OnPrimaryDark, strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("DEPLOYING...", color = OnPrimaryDark, fontWeight = FontWeight.Bold)
+                            } else {
+                                Icon(Icons.Default.RocketLaunch, contentDescription = null, tint = OnPrimaryDark, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("DISPATCH ALL", color = OnPrimaryDark, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -116,6 +137,39 @@ fun MonitorScreen(
                     MetricBox(title = "ACTIVATED", value = "$activatedCount", accentColor = SecondaryEmerald)
                     MetricBox(title = "PENDING 5M", value = "$pendingCount", accentColor = AccentAmber)
                     MetricBox(title = "EXTRACTED BAL", value = "$${String.format("%.2f", totalExtracted)}", accentColor = SecondaryEmerald)
+                }
+
+                // Retrofit Backend StateFlow Sync Status Indicator
+                when (backendCardStatusState) {
+                    is UiState.Loading -> {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(12.dp), color = PrimaryCyan, strokeWidth = 1.5.dp)
+                            Text(
+                                text = backendCardStatusState.message,
+                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, color = TextSecondary)
+                            )
+                        }
+                    }
+                    is UiState.Success -> {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        val summary = backendCardStatusState.data
+                        Text(
+                            text = "RETROFIT SERVICE STATEFLOW: ${summary.activatedCount}/${summary.totalCards} cards active | Total Bal: $${String.format("%.2f", summary.totalOrchestratedBalance)}",
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, color = SecondaryEmerald, fontWeight = FontWeight.SemiBold)
+                        )
+                    }
+                    is UiState.Error -> {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "RETROFIT SERVICE STATUS: ${backendCardStatusState.message}",
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, color = ErrorRed)
+                        )
+                    }
+                    UiState.Idle -> {}
                 }
             }
         }

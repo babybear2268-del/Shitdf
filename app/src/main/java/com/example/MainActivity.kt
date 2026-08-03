@@ -6,9 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.Crossfade
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -54,6 +52,11 @@ fun OrchestratorApp(viewModel: OrchestratorViewModel) {
     val selectedJobDetails by viewModel.selectedJobDetails.collectAsStateWithLifecycle()
     val isDeploying by viewModel.isDeploying.collectAsStateWithLifecycle()
     val manifestJsonState by viewModel.manifestJsonState.collectAsStateWithLifecycle()
+    val isPerformingOperation by viewModel.isPerformingOperation.collectAsStateWithLifecycle()
+    val operationMessage by viewModel.operationMessage.collectAsStateWithLifecycle()
+    val operationState by viewModel.operationState.collectAsStateWithLifecycle()
+    val isCheckingUnactivated by viewModel.isCheckingUnactivated.collectAsStateWithLifecycle()
+    val backendCardStatusState by viewModel.backendCardStatusState.collectAsStateWithLifecycle()
 
     var showAddEditProfileDialog by remember { mutableStateOf(false) }
     var profileToEdit by remember { mutableStateOf<CardProfileEntity?>(null) }
@@ -83,54 +86,65 @@ fun OrchestratorApp(viewModel: OrchestratorViewModel) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            Crossfade(targetState = activeTab, label = "TabCrossfade") { tab ->
-                when (tab) {
-                    0 -> MonitorScreen(
-                        workerJobs = workerJobs,
-                        profiles = profiles,
-                        cards = allCards,
-                        recentLogs = telemetryLogs,
-                        isDeploying = isDeploying,
-                        onDeployNewManifest = { viewModel.deployNewManifest() },
-                        onJobClick = { viewModel.selectJobForDetails(it) },
-                        onClearJobs = { viewModel.clearAllJobs() },
-                        onRunPipelineForProfile = { id -> viewModel.runPipelineForProfile(id) }
-                    )
+            Column(modifier = Modifier.fillMaxSize()) {
+                com.example.ui.components.OperationLoadingBanner(
+                    operationState = operationState
+                )
 
-                    1 -> ProfilesScreen(
-                        profiles = profiles,
-                        cards = allCards,
-                        onAddProfileClick = {
-                            profileToEdit = null
-                            showAddEditProfileDialog = true
-                        },
-                        onEditProfileClick = { profile ->
-                            profileToEdit = profile
-                            showAddEditProfileDialog = true
-                        },
-                        onDeleteProfileClick = { id -> viewModel.deleteProfile(id) },
-                        onRunPipelineForProfile = { id -> viewModel.runPipelineForProfile(id) },
-                        onAddCardToProfileClick = { profile -> profileForCardAdd = profile },
-                        onSelectPrimaryCard = { profileId, cardId -> viewModel.setPrimaryCardForProfile(profileId, cardId) },
-                        onDeleteCardClick = { cardId -> viewModel.deleteCard(cardId) },
-                        onJsonManifestClick = {
-                            viewModel.refreshManifestJson()
-                            showJsonManifestDialog = true
-                        },
-                        onTriggerCheckUnactivated = { viewModel.triggerManualCheckForUnactivated() },
-                        onScanCardPhotoClick = { showPhotoCardScanDialog = true }
-                    )
+                Box(modifier = Modifier.weight(1f)) {
+                    Crossfade(targetState = activeTab, label = "TabCrossfade") { tab ->
+                        when (tab) {
+                            0 -> MonitorScreen(
+                                workerJobs = workerJobs,
+                                profiles = profiles,
+                                cards = allCards,
+                                recentLogs = telemetryLogs,
+                                isDeploying = isDeploying,
+                                backendCardStatusState = backendCardStatusState,
+                                onSyncBackendStatus = { viewModel.fetchBackendOrchestratedCardStatuses() },
+                                onDeployNewManifest = { viewModel.deployNewManifest() },
+                                onJobClick = { viewModel.selectJobForDetails(it) },
+                                onClearJobs = { viewModel.clearAllJobs() },
+                                onRunPipelineForProfile = { id -> viewModel.runPipelineForProfile(id) }
+                            )
 
-                    2 -> LogsScreen(
-                        logs = telemetryLogs,
-                        onClearLogsClick = { viewModel.clearLogs() }
-                    )
+                            1 -> ProfilesScreen(
+                                profiles = profiles,
+                                cards = allCards,
+                                isCheckingUnactivated = isCheckingUnactivated,
+                                onAddProfileClick = {
+                                    profileToEdit = null
+                                    showAddEditProfileDialog = true
+                                },
+                                onEditProfileClick = { profile ->
+                                    profileToEdit = profile
+                                    showAddEditProfileDialog = true
+                                },
+                                onDeleteProfileClick = { id -> viewModel.deleteProfile(id) },
+                                onRunPipelineForProfile = { id -> viewModel.runPipelineForProfile(id) },
+                                onAddCardToProfileClick = { profile -> profileForCardAdd = profile },
+                                onSelectPrimaryCard = { profileId, cardId -> viewModel.setPrimaryCardForProfile(profileId, cardId) },
+                                onDeleteCardClick = { cardId -> viewModel.deleteCard(cardId) },
+                                onJsonManifestClick = {
+                                    viewModel.refreshManifestJson()
+                                    showJsonManifestDialog = true
+                                },
+                                onTriggerCheckUnactivated = { viewModel.triggerManualCheckForUnactivated() },
+                                onScanCardPhotoClick = { showPhotoCardScanDialog = true }
+                            )
 
-                    3 -> ConfigScreen(
-                        currentConfig = config,
-                        onSaveConfig = { updatedConfig -> viewModel.saveConfig(updatedConfig) },
-                        onTestWebhook = { webhookUrl, callback -> viewModel.testWebhook(webhookUrl, callback) }
-                    )
+                            2 -> LogsScreen(
+                                logs = telemetryLogs,
+                                onClearLogsClick = { viewModel.clearLogs() }
+                            )
+
+                            3 -> ConfigScreen(
+                                currentConfig = config,
+                                onSaveConfig = { updatedConfig -> viewModel.saveConfig(updatedConfig) },
+                                onTestWebhook = { webhookUrl, callback -> viewModel.testWebhook(webhookUrl, callback) }
+                            )
+                        }
+                    }
                 }
             }
 

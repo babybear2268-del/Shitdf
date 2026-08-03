@@ -1,6 +1,12 @@
 package com.example.data
 
 import android.content.Context
+import com.example.network.CardStatusApiClient
+import com.example.network.CardStatusApiService
+import com.example.network.CardStatusDto
+import com.example.network.OrchestratedCardStatusSummaryDto
+import com.example.util.CentralLogger
+import com.example.util.LogLevel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -18,7 +24,49 @@ class OrchestratorRepository private constructor(context: Context) {
     private val logDao = db.telemetryLogDao()
     private val configDao = db.configDao()
 
+    private var cardStatusApiService: CardStatusApiService = CardStatusApiClient.create()
+
     private val timeFormatter = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
+
+    fun updateApiBaseUrl(baseUrl: String) {
+        if (baseUrl.isNotBlank() && (baseUrl.startsWith("http://") || baseUrl.startsWith("https://"))) {
+            cardStatusApiService = CardStatusApiClient.create(baseUrl)
+        }
+    }
+
+    suspend fun fetchOrchestratedCardStatusFromBackend(cardId: String): Result<CardStatusDto> {
+        return try {
+            val response = cardStatusApiService.getCardStatus(cardId)
+            if (response.isSuccessful && response.body() != null) {
+                CentralLogger.log(LogLevel.INFO, "Repository", "Successfully fetched card status for $cardId via Retrofit")
+                Result.success(response.body()!!)
+            } else {
+                val err = "HTTP ${response.code()}: ${response.message()}"
+                CentralLogger.logNetworkError("Repository", "api/v1/cards/status/$cardId", err, httpCode = response.code())
+                Result.failure(Exception(err))
+            }
+        } catch (e: Exception) {
+            CentralLogger.logNetworkError("Repository", "api/v1/cards/status/$cardId", e.message ?: "Connection error", throwable = e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun fetchOrchestratedSummaryFromBackend(): Result<OrchestratedCardStatusSummaryDto> {
+        return try {
+            val response = cardStatusApiService.getOrchestratedCardStatusSummary()
+            if (response.isSuccessful && response.body() != null) {
+                CentralLogger.log(LogLevel.INFO, "Repository", "Successfully fetched card status summary via Retrofit")
+                Result.success(response.body()!!)
+            } else {
+                val err = "HTTP ${response.code()}: ${response.message()}"
+                CentralLogger.logNetworkError("Repository", "api/v1/orchestrator/cards/status", err, httpCode = response.code())
+                Result.failure(Exception(err))
+            }
+        } catch (e: Exception) {
+            CentralLogger.logNetworkError("Repository", "api/v1/orchestrator/cards/status", e.message ?: "Connection error", throwable = e)
+            Result.failure(e)
+        }
+    }
 
     val profiles: Flow<List<CardProfileEntity>> = profileDao.getAllProfiles()
     val allCards: Flow<List<PaymentCardEntity>> = cardDao.getAllCards()

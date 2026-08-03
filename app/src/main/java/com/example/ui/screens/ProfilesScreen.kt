@@ -28,6 +28,7 @@ import com.example.ui.theme.*
 fun ProfilesScreen(
     profiles: List<CardProfileEntity>,
     cards: List<PaymentCardEntity>,
+    isCheckingUnactivated: Boolean = false,
     onAddProfileClick: () -> Unit,
     onEditProfileClick: (CardProfileEntity) -> Unit,
     onDeleteProfileClick: (String) -> Unit,
@@ -78,11 +79,18 @@ fun ProfilesScreen(
 
                 OutlinedButton(
                     onClick = onTriggerCheckUnactivated,
+                    enabled = !isCheckingUnactivated,
                     modifier = Modifier.testTag("profiles_check_unactivated_button")
                 ) {
-                    Icon(Icons.Default.Sync, contentDescription = null, tint = AccentAmber, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("5M QUEUE", style = MaterialTheme.typography.labelSmall.copy(color = TextPrimary))
+                    if (isCheckingUnactivated) {
+                        CircularProgressIndicator(modifier = Modifier.size(14.dp), color = AccentAmber, strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("CHECKING...", style = MaterialTheme.typography.labelSmall.copy(color = TextPrimary))
+                    } else {
+                        Icon(Icons.Default.Sync, contentDescription = null, tint = AccentAmber, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("5M QUEUE", style = MaterialTheme.typography.labelSmall.copy(color = TextPrimary))
+                    }
                 }
 
                 Button(

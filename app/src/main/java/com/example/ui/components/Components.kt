@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
+import com.example.ui.OperationState
 
 @Composable
 fun SystemHeader(
@@ -128,6 +129,148 @@ fun HighDensityNavBar(
                 ),
                 modifier = Modifier.testTag(item.testTag)
             )
+        }
+    }
+}
+
+@Composable
+fun OperationLoadingBanner(
+    operationState: OperationState,
+    modifier: Modifier = Modifier
+) {
+    val visible = operationState !is OperationState.Idle
+    androidx.compose.animation.AnimatedVisibility(
+        visible = visible,
+        enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically(),
+        exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically(),
+        modifier = modifier
+    ) {
+        val (bgColor, borderColor, textColor, progressColor) = when (operationState) {
+            is OperationState.Loading -> Quadruple(HighDensitySurfaceVariant, PrimaryCyan, TextPrimary, PrimaryCyan)
+            is OperationState.Success -> Quadruple(HighDensitySurfaceVariant, SecondaryEmerald, TextPrimary, SecondaryEmerald)
+            is OperationState.Error -> Quadruple(HighDensitySurfaceVariant, ErrorRed, TextPrimary, ErrorRed)
+            OperationState.Idle -> Quadruple(HighDensitySurfaceVariant, PrimaryCyan, TextPrimary, PrimaryCyan)
+        }
+
+        val text = when (operationState) {
+            is OperationState.Loading -> operationState.message
+            is OperationState.Success -> operationState.message
+            is OperationState.Error -> operationState.message
+            OperationState.Idle -> ""
+        }
+
+        Surface(
+            color = bgColor,
+            shape = RoundedCornerShape(8.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, borderColor.copy(alpha = 0.6f)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .testTag("operation_loading_banner")
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (operationState is OperationState.Loading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = progressColor,
+                            strokeWidth = 2.dp
+                        )
+                    } else if (operationState is OperationState.Success) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Success",
+                            tint = SecondaryEmerald,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    } else if (operationState is OperationState.Error) {
+                        Icon(
+                            imageVector = Icons.Default.Error,
+                            contentDescription = "Error",
+                            tint = ErrorRed,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium,
+                            color = textColor
+                        )
+                    )
+                }
+                if (operationState is OperationState.Loading) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(1.5.dp)),
+                        color = progressColor,
+                        trackColor = HighDensitySurface
+                    )
+                }
+            }
+        }
+    }
+}
+
+private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+
+@Composable
+fun OperationLoadingBanner(
+    isLoading: Boolean,
+    message: String?,
+    modifier: Modifier = Modifier
+) {
+    androidx.compose.animation.AnimatedVisibility(
+        visible = isLoading && !message.isNullOrBlank(),
+        enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically(),
+        exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically(),
+        modifier = modifier
+    ) {
+        Surface(
+            color = HighDensitySurfaceVariant,
+            shape = RoundedCornerShape(8.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryCyan.copy(alpha = 0.6f)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .testTag("operation_loading_banner")
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = PrimaryCyan,
+                        strokeWidth = 2.dp
+                    )
+                    Text(
+                        text = message ?: "Processing database operation...",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium,
+                            color = TextPrimary
+                        )
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(1.5.dp)),
+                    color = PrimaryCyan,
+                    trackColor = HighDensitySurface
+                )
+            }
         }
     }
 }

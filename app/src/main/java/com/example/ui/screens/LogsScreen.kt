@@ -40,14 +40,24 @@ fun LogsScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Terminal, contentDescription = null, tint = PrimaryCyan)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "TELEMETRY & AUDIT LOGS",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        color = PrimaryCyan
+                Column {
+                    Text(
+                        text = "TELEMETRY & AUDIT LOGS",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryCyan
+                        )
                     )
-                )
+                    Text(
+                        text = "${logs.size} Events Captured | Real-Time Flow Active",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            color = SecondaryEmerald,
+                            fontSize = 10.sp
+                        )
+                    )
+                }
             }
 
             TextButton(

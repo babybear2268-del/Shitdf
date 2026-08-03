@@ -144,10 +144,10 @@ object CanadianIdentityGenerator {
             billingState = addr.province,
             billingZip = addr.zip,
             billingCountry = "Canada",
-            cardNumber = fullCard,
-            cardExpMonth = expM,
-            cardExpYear = expY,
-            cardCvc = cvc
+            cardNumber = "",
+            cardExpMonth = "",
+            cardExpYear = "",
+            cardCvc = ""
         )
     }
 }
