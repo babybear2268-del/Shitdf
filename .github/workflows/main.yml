@@ -80,110 +80,31 @@ jobs:
           role-session-name: OrchestratorProTransform-${{ github.run_number }}
           aws-region: us-east-1
           role-duration-seconds: 3600
-
-
-      # -- 7. Install AWS Transform CLI -------------------------------
-      - name: Install AWS Transform CLI
+                # ── 7. Write transformation definition ────────────────────────
+      - name: 📝 Write Orchestrator Pro transformation definition
         run: |
-          curl -fsSL https://transform-cli.awsstatic.com/install.sh | bash
-          echo "$HOME/.atx/bin" >> $GITHUB_PATH
+          mkdir -p .atx
+          cat > .atx/orchestrator-stub-rewrite.md << 'EOF'
+          additionalPlanContext=This is an Android Kotlin Jetpack Compose MVVM app.
+          Find and rewrite all stub and placeholder implementations with production-grade Kotlin code.
+          Fix: empty onMenuClick lambda, missing MonitorScreen.kt, retryJob() exponential backoff,
+          RealWebExecutor OkHttp3 HTTP calls, remove Playwright references, harden Discord webhook,
+          URI auto-fill with Luhn validation.
+          Tech stack: Kotlin, Compose, Material3, Room, StateFlow, OkHttp3, Moshi, Gradle KTS, Java 11,
+          minSdk 23, targetSdk 36. Use only existing dependencies from libs.versions.toml.
+          EOF
 
-      - name: Verify ATX installation
-        run: atx --version
-              # ── 8. Run AWS Transform ───────────────────────────────────────
+      # ── 8. Run AWS Transform ───────────────────────────────────────
       - name: 🚀 Run AWS Transform stub rewrite
         run: |
           atx custom def exec \
             -n "orchestrator-stub-rewrite" \
             -p "." \
             -c "./gradlew assembleDebug --build-cache --parallel --no-daemon" \
-            -g "additionalPlanContext=$(cat .atx/orchestrator-stub-rewrite.md)" \
+            -g "$(cat .atx/orchestrator-stub-rewrite.md)" \
             -x \
             -t
 
-
-          ## Executive Objective
-          Analyze, refactor, and replace all incomplete stub implementations, placeholder functions, empty lambdas, and simulated networking code across the project. Ensure every component conforms to production-grade Kotlin, Coroutines, Jetpack Compose, OkHttp, and Playwright framework standards.
-
-          ---
-
-          ## Playwright & HMAC Architecture Framework Integration
-
-          When refactoring network components (`RealWebExecutor.kt` or Playwright automation scripts), implement the following dual-mode framework patterns:
-
-          ### 1. Direct HMAC API Request Signing (`APIRequestContext`)
-          Use for pure API calls where DOM rendering is not required:
-          - **Canonical String:** `${METHOD}\n${PATH_AND_SORTED_QUERY}\n${TIMESTAMP}\n${BODY}`
-          - **Query Parameter Sorting:** Sort URL parameters alphabetically prior to hashing to prevent signature mismatches.
-          - **HMAC Calculation:** Compute HMAC-SHA256 signature and attach via `X-Timestamp` and `X-Signature` headers.
-          - **Clock Skew:** Handle server time offsets dynamically using HTTP `Date` response header comparisons.
-
-          ### 2. Dynamic HMAC Signing via Network Interception (`page.route`)
-          Use when DOM rendering is required (client-side state hydration or SPA scraping):
-          - Intercept matching API patterns (e.g., `**/api/v2/**`).
-          - Compute HMAC-SHA256 signature on the fly using request metadata (`method`, `pathname`, `timestamp`, `postData`).
-          - Pass updated headers (`X-HMAC-Signature`, `X-HMAC-Timestamp`) via `route.continue()`.
-          - Wait for DOM target selectors (e.g., `.data-card`) before scraping extracted elements.
-
-          ### 3. Anti-Fingerprinting (JA3 / JA4 Compliance)
-          - Set custom browser user agents and align standard headers (`User-Agent`, `Referer`, `Accept-Language`, `Sec-Ch-Ua`).
-          - Use headful launch args (`--disable-blink-features=AutomationControlled`) when browser rendering is necessary to align TLS ClientHello fingerprints.
-
-          ---
-
-          ## Target File Specifications & Prompts
-
-          ### 1. File: `app/src/main/java/com/example/MainActivity.kt`
-          * **Prompt Instruction:**
-            Implement a functional Jetpack Compose `ModalNavigationDrawer` controlled by a `DrawerState`. When the top app bar menu button is clicked, open the drawer. Include a drawer header with app metadata ("Orchestrator Pro") and navigation items for "Monitor", "Profiles", "Config", "Logs", and "Settings".
-
-          ### 2. File: `app/src/main/java/com/example/ui/screens/MonitorScreen.kt` (NEW FILE)
-          * **Prompt Instruction:**
-            Create a complete, production-ready Jetpack Compose Material3 screen named `MonitorScreen`.
-            Include:
-            - **Header Metrics:** Live summary card displaying active pipeline jobs and system health status.
-            - **Job Status List:** LazyColumn listing active jobs with execution status badges (Running, Success, Failed, Retrying).
-            - **Action Controls:** "Deploy Pipeline" FAB and item-level "Run Now" and "Cancel" buttons wired to `OrchestratorViewModel`.
-            - **Telemetry Log Stream:** Expandable bottom panel showing real-time logs color-coded by severity.
-
-          ### 3. File: `app/src/main/java/com/example/ui/OrchestratorViewModel.kt`
-          * **Prompt Instruction:**
-            Refactor `retryJob(jobId: String)` to execute an exponential backoff retry mechanism inside `viewModelScope.launch(Dispatchers.IO)`.
-            Requirements:
-            - Maximum 3 retry attempts.
-            - Delay intervals: 2s, 4s, 8s ($2^n \times 1000$ ms).
-            - Emit state changes via `_jobState.value` (`JobStatus.Retrying(attempt, maxAttempts)`).
-            - Log telemetry messages on each retry attempt.
-
-          ### 4. File: `app/src/main/java/com/example/network/RealWebExecutor.kt`
-          * **Prompt Instruction:**
-            Rewrite `RealWebExecutor` using production-grade OkHttp3 calls with integrated HMAC signing.
-            Requirements:
-            - Use `OkHttpClient` with configured timeouts (30s connect, 60s read, 60s write).
-            - Implement custom `Interceptor` for HTTP 429 (Too Many Requests) to read `Retry-After` header and execute automated thread-safe retry delays.
-            - Calculate HMAC-SHA256 signatures on canonical URLs (with sorted query parameters) and attach `X-HMAC-Timestamp` and `X-HMAC-Signature` headers dynamically.
-            - Configure standard browser headers (`User-Agent`, `Accept-Language`, `Sec-Ch-Ua`) to avoid TLS/JA3 fingerprinting mismatches on direct API requests.
-
-          ### 5. Playwright Integration & Hybrid Extraction
-          * **Prompt Instruction:**
-            Refactor Playwright web automation scripts to support both direct API signing (`APIRequestContext`) and dynamic network route interception (`page.route`).
-            If a dynamic secret or CSRF nonce is embedded in page state (`window.__INITIAL_STATE__`), extract it during browser initial load and pass it to the HMAC signing engine before triggering target API endpoints or DOM scraping selectors.
-
-          ### 6. Discord Webhook Logging
-          * **Prompt Instruction:**
-            Implement a non-blocking POST request sender targeting Discord Webhooks using OkHttp3.
-            Requirements:
-            - Construct valid JSON payload containing embeds, timestamps, job execution summaries, and status colors.
-            - Execute silently in `Dispatchers.IO` using fire-and-forget logic so network errors on webhook delivery do not crash or block primary app flows.
-
-          ### 7. URI Auto-fill & Card Field Validation
-          * **Prompt Instruction:**
-            Implement auto-fill query parameter parsing from deep-link URIs.
-            When parsing credit card, profile, or payment params:
-            - Implement a pure Kotlin **Luhn Algorithm** validation function (`fun isValidLuhn(number: String): Boolean`).
-            - Validate card length, expiration date format (`MM/YY`), and CVV pattern using regular expressions before auto-filling form state fields.
-            - Show UI validation state errors on text input fields if Luhn validation fails.
-          EOF
 
       # -- 9. Execute AWS Transform CLI ------------------------------
       - name: Run AWS Transform stub rewrite
