@@ -79,15 +79,21 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', '**/libs.versions.toml') }}
           restore-keys: |
             gradle-${{ runner.os }}-
+      # ── 5. Install Node.js 22 (required by ATX CLI) ───────────────
+      - name: 📦 Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
-      # -- 6. Install AWS Transform CLI -------------------------------
-      - name: Install AWS Transform CLI
+      # ── 6. Install AWS Transform CLI ──────────────────────────────
+      - name: 🔧 Install AWS Transform CLI
         run: |
           curl -fsSL https://transform-cli.awsstatic.com/install.sh | bash
           echo "$HOME/.atx/bin" >> $GITHUB_PATH
 
-      - name: Verify ATX installation
+      - name: ✅ Verify ATX installation
         run: atx --version
+
 
 
 
