@@ -1,6 +1,4 @@
-
-
-on:
+On:
   push:
     branches: [main]
   workflow_dispatch:
@@ -19,7 +17,7 @@ permissions:
 
 jobs:
   transform-stubs:
-    name: Rewrite Stub Code with AWS Transform
+    name: Execute Comprehensive AWS Transform Pipeline
     runs-on: ubuntu-latest
 
     steps:
@@ -45,7 +43,9 @@ jobs:
             gradle wrapper --gradle-version 8.7
           fi
           chmod +x gradlew
-        name: 🔐 Configure AWS credentials
+
+      # -- 4. Configure AWS Credentials -------------------------------
+      - name: 🔐 Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4.1.0
         with:
           role-to-assume: arn:aws:iam::228060739480:role/github-actions-role
@@ -53,8 +53,7 @@ jobs:
           aws-region: us-east-1
           role-duration-seconds: 3600
 
-
-      # -- 4. Generate Debug Keystore ---------------------------------
+      # -- 5. Generate Debug Keystore ---------------------------------
       - name: Generate debug keystore
         run: |
           mkdir -p $HOME/.android
@@ -68,8 +67,8 @@ jobs:
             -keypass android \
             -dname "CN=Android Debug,O=Android,C=US"
           cp $HOME/.android/debug.keystore ${{ github.workspace }}/debug.keystore
-          
-      # -- 5. Cache Gradle Packages -----------------------------------
+
+      # -- 6. Cache Gradle Packages -----------------------------------
       - name: Cache Gradle packages
         uses: actions/cache@v4
         with:
@@ -79,13 +78,14 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', '**/libs.versions.toml') }}
           restore-keys: |
             gradle-${{ runner.os }}-
-      # ── 5. Install Node.js 22 (required by ATX CLI) ───────────────
+
+      # ── 7. Install Node.js 22 (required by ATX CLI) ───────────────
       - name: 📦 Set up Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      # ── 6. Install AWS Transform CLI ──────────────────────────────
+      # ── 8. Install AWS Transform CLI ──────────────────────────────
       - name: 🔧 Install AWS Transform CLI
         run: |
           curl -fsSL https://transform-cli.awsstatic.com/install.sh | bash
@@ -94,120 +94,258 @@ jobs:
       - name: ✅ Verify ATX installation
         run: atx --version
 
-
-
-
-      # -- 8. Write Transformation Definition & Prompts ---------------
-      - name: Write Orchestrator Pro transformation definition
+      # -- 9. Create All Custom Transformation Definitions ------------
+      - name: Write All Transformation Definitions
         run: |
           mkdir -p .atx
-          cat > .atx/orchestrator-stub-rewrite.md << 'EOF'
-          # Transformation Specification: Orchestrator Pro Stub Refactoring
 
-          ## Executive Objective
-          Analyze, refactor, and replace all incomplete stub implementations, placeholder functions, empty lambdas, and simulated networking code across the project. Ensure every component conforms to production-grade Kotlin, Coroutines, Jetpack Compose, OkHttp, and Playwright framework standards.
+          # 1. Direct HMAC API Request Signing Definition
+          cat > .atx/hmac-direct-api.md << 'EOF'
+          # Transformation Specification: Direct HMAC API Request Signing
 
-          ---
+          ## Objective
+          Implement direct HMAC-SHA256 request signing for API calls using `APIRequestContext` or OkHttp clients where DOM rendering is not required.
 
-          ## Playwright & HMAC Architecture Framework Integration
-
-          When refactoring network components (`RealWebExecutor.kt` or Playwright automation scripts), implement the following dual-mode framework patterns:
-
-          ### 1. Direct HMAC API Request Signing (`APIRequestContext`)
-          Use for pure API calls where DOM rendering is not required:
-          - **Canonical String:** `${METHOD}\n${PATH_AND_SORTED_QUERY}\n${TIMESTAMP}\n${BODY}`
-          - **Query Parameter Sorting:** Sort URL parameters alphabetically prior to hashing to prevent signature mismatches.
-          - **HMAC Calculation:** Compute HMAC-SHA256 signature and attach via `X-Timestamp` and `X-Signature` headers.
-          - **Clock Skew:** Handle server time offsets dynamically using HTTP `Date` response header comparisons.
-
-          ### 2. Dynamic HMAC Signing via Network Interception (`page.route`)
-          Use when DOM rendering is required (client-side state hydration or SPA scraping):
-          - Intercept matching API patterns (e.g., `**/api/v2/**`).
-          - Compute HMAC-SHA256 signature on the fly using request metadata (`method`, `pathname`, `timestamp`, `postData`).
-          - Pass updated headers (`X-HMAC-Signature`, `X-HMAC-Timestamp`) via `route.continue()`.
-          - Wait for DOM target selectors (e.g., `.data-card`) before scraping extracted elements.
-
-          ### 3. Anti-Fingerprinting (JA3 / JA4 Compliance)
-          - Set custom browser user agents and align standard headers (`User-Agent`, `Referer`, `Accept-Language`, `Sec-Ch-Ua`).
-          - Use headful launch args (`--disable-blink-features=AutomationControlled`) when browser rendering is necessary to align TLS ClientHello fingerprints.
-
-          ---
-
-          ## Target File Specifications & Prompts
-
-          ### 1. File: `app/src/main/java/com/example/MainActivity.kt`
-          * **Prompt Instruction:**
-            Implement a functional Jetpack Compose `ModalNavigationDrawer` controlled by a `DrawerState`. When the top app bar menu button is clicked, open the drawer. Include a drawer header with app metadata ("Orchestrator Pro") and navigation items for "Monitor", "Profiles", "Config", "Logs", and "Settings".
-
-          ### 2. File: `app/src/main/java/com/example/ui/screens/MonitorScreen.kt` (NEW FILE)
-          * **Prompt Instruction:**
-            Create a complete, production-ready Jetpack Compose Material3 screen named `MonitorScreen`.
-            Include:
-            - **Header Metrics:** Live summary card displaying active pipeline jobs and system health status.
-            - **Job Status List:** LazyColumn listing active jobs with execution status badges (Running, Success, Failed, Retrying).
-            - **Action Controls:** "Deploy Pipeline" FAB and item-level "Run Now" and "Cancel" buttons wired to `OrchestratorViewModel`.
-            - **Telemetry Log Stream:** Expandable bottom panel showing real-time logs color-coded by severity.
-
-          ### 3. File: `app/src/main/java/com/example/ui/OrchestratorViewModel.kt`
-          * **Prompt Instruction:**
-            Refactor `retryJob(jobId: String)` to execute an exponential backoff retry mechanism inside `viewModelScope.launch(Dispatchers.IO)`.
-            Requirements:
-            - Maximum 3 retry attempts.
-            - Delay intervals: 2s, 4s, 8s ($2^n \times 1000$ ms).
-            - Emit state changes via `_jobState.value` (`JobStatus.Retrying(attempt, maxAttempts)`).
-            - Log telemetry messages on each retry attempt.
-
-          ### 4. File: `app/src/main/java/com/example/network/RealWebExecutor.kt`
-          * **Prompt Instruction:**
-            Rewrite `RealWebExecutor` using production-grade OkHttp3 calls with integrated HMAC signing.
-            Requirements:
-            - Use `OkHttpClient` with configured timeouts (30s connect, 60s read, 60s write).
-            - Implement custom `Interceptor` for HTTP 429 (Too Many Requests) to read `Retry-After` header and execute automated thread-safe retry delays.
-            - Calculate HMAC-SHA256 signatures on canonical URLs (with sorted query parameters) and attach `X-HMAC-Timestamp` and `X-HMAC-Signature` headers dynamically.
-            - Configure standard browser headers (`User-Agent`, `Accept-Language`, `Sec-Ch-Ua`) to avoid TLS/JA3 fingerprinting mismatches on direct API requests.
-
-          ### 5. Playwright Integration & Hybrid Extraction
-          * **Prompt Instruction:**
-            Refactor Playwright web automation scripts to support both direct API signing (`APIRequestContext`) and dynamic network route interception (`page.route`).
-            If a dynamic secret or CSRF nonce is embedded in page state (`window.__INITIAL_STATE__`), extract it during browser initial load and pass it to the HMAC signing engine before triggering target API endpoints or DOM scraping selectors.
-
-          ### 6. Discord Webhook Logging
-          * **Prompt Instruction:**
-            Implement a non-blocking POST request sender targeting Discord Webhooks using OkHttp3.
-            Requirements:
-            - Construct valid JSON payload containing embeds, timestamps, job execution summaries, and status colors.
-            - Execute silently in `Dispatchers.IO` using fire-and-forget logic so network errors on webhook delivery do not crash or block primary app flows.
-
-          ### 7. URI Auto-fill & Card Field Validation
-          * **Prompt Instruction:**
-            Implement auto-fill query parameter parsing from deep-link URIs.
-            When parsing credit card, profile, or payment params:
-            - Implement a pure Kotlin **Luhn Algorithm** validation function (`fun isValidLuhn(number: String): Boolean`).
-            - Validate card length, expiration date format (`MM/YY`), and CVV pattern using regular expressions before auto-filling form state fields.
-            - Show UI validation state errors on text input fields if Luhn validation fails.
+          ## Specifications
+          - Construct canonical string: `${METHOD}\n${PATH_AND_SORTED_QUERY}\n${TIMESTAMP}\n${BODY}`
+          - Alphabetically sort URL query parameters prior to hashing to prevent signature mismatches.
+          - Calculate HMAC-SHA256 signature and attach via `X-Timestamp` and `X-Signature` headers.
+          - Handle server time offsets dynamically using HTTP `Date` response header comparisons to eliminate clock skew errors.
           EOF
 
-      # -- 9. Execute AWS Transform CLI ------------------------------
-      - name: Run AWS Transform stub rewrite
-        run: |
-          atx custom def exec \
-            --transformation-name "orchestrator-stub-rewrite" \
-            --transformation-definition-path ".atx/orchestrator-stub-rewrite.md" \
-            --code-repository-path "." \
-            --build-command "./gradlew assembleDebug --build-cache --parallel --no-daemon" \
-            --non-interactive \
-            --trust-all-tools
+          # 2. Dynamic Route Interception Definition
+          cat > .atx/hmac-route-interception.md << 'EOF'
+          # Transformation Specification: Dynamic HMAC Signing via Network Interception
 
-      # -- 10. Verify Debug Build Compiles ---------------------------
+          ## Objective
+          Implement on-the-fly HMAC-SHA256 signing via Playwright request routing for dynamic DOM-rendered applications.
+
+          ## Specifications
+          - Intercept target API endpoint patterns (e.g., `**/api/v2/**`) via `page.route()`.
+          - Compute HMAC-SHA256 signatures dynamically using request metadata (`method`, `pathname`, `timestamp`, `postData`).
+          - Forward requests using `route.continue()` with attached `X-HMAC-Signature` and `X-HMAC-Timestamp` headers.
+          - Wait for target DOM selectors (e.g., `.data-card`) before extracting scraped elements.
+          EOF
+
+          # 3. Anti-Fingerprinting Definition
+          cat > .atx/anti-fingerprinting.md << 'EOF'
+          # Transformation Specification: Anti-Fingerprinting (JA3 / JA4 Compliance)
+
+          ## Objective
+          Align request headers and browser launch arguments to match realistic client profiles and bypass anti-bot TLS fingerprinting checks.
+
+          ## Specifications
+          - Set custom user agents and align standard browser headers (`User-Agent`, `Referer`, `Accept-Language`, `Sec-Ch-Ua`).
+          - Configure launch flags (`--disable-blink-features=AutomationControlled`) when browser rendering is necessary to match ClientHello signatures.
+          - Support headful launch arguments for fallback execution when strict TLS fingerprinting is enforced.
+          EOF
+
+          # 4. Compose M2 to M3 Definition
+          cat > .atx/compose-m2-to-m3.md << 'EOF'
+          # Transformation Specification: Jetpack Compose Material 2 to Material 3
+
+          ## Objective
+          Refactor all Jetpack Compose UI components from Material 2 (`androidx.compose.material.*`) to Material 3 (`androidx.compose.material3.*`).
+
+          ## Specifications
+          - Replace `ScaffoldState` and `rememberScaffoldState()` with `Scaffold` inner padding and `SnackbarHostState`.
+          - Update `ButtonDefaults`, `CardDefaults`, and `TextFieldDefaults` to use M3 color schemes and shapes.
+          - Refactor `TopAppBar` and `MediumTopAppBar` to use M3 `TopAppBarScrollBehavior`.
+          - Update `MaterialTheme.colors` references to `MaterialTheme.colorScheme`.
+          EOF
+
+          # 5. Retrofit to OkHttp & Coroutines Definition
+          cat > .atx/retrofit-to-okhttp-coroutines.md << 'EOF'
+          # Transformation Specification: Networking Refactoring to OkHttp3 & Coroutines
+
+          ## Objective
+          Replace REST frameworks with low-level OkHttp3 suspending execution layers to enable custom interceptors and low-level TLS control.
+
+          ## Specifications
+          - Convert blocking synchronous calls into suspending functions using `suspendCancellableCoroutine`.
+          - Move execution contexts strictly to `Dispatchers.IO`.
+          - Implement a centralized `Interceptor` chain for authorization tokens, auto-retry on HTTP 429, and global error handling.
+          - Replace reflection-based JSON parsers with Kotlinx Serialization.
+          EOF
+
+          # 6. Playwright TS to Kotlin Definition
+          cat > .atx/playwright-ts-to-kotlin.md << 'EOF'
+          # Transformation Specification: Playwright TS to Native Kotlin Playwright
+
+          ## Objective
+          Port Node.js Playwright scripts into native Kotlin Playwright integrated into JVM test suites.
+
+          ## Specifications
+          - Convert TypeScript `async/await` patterns to Kotlin Coroutines or synchronous Playwright Java API calls.
+          - Translate `page.route()` interception callbacks into Kotlin lambda functions.
+          - Map Locator selectors (`page.locator(...)`) directly to JVM Playwright syntax.
+          EOF
+
+          # 7. Proxy & Captcha Interceptor Definition
+          cat > .atx/proxy-captcha-interceptor.md << 'EOF'
+          # Transformation Specification: Rotating Proxy & Captcha Solver Integration
+
+          ## Objective
+          Embed automatic IP rotation via proxy providers and automated CAPTCHA detection/resolution hooks into web automation pipelines.
+
+          ## Specifications
+          - Inject custom proxy authentication headers (`Proxy-Authorization`) dynamically per request.
+          - Detect Cloudflare/Turnstile/reCAPTCHA DOM challenges or HTTP status codes (403/503).
+          - Pause execution, trigger an external solver API, and inject solved tokens/cookies back into current browser storage or headers.
+          EOF
+
+          # 8. Deep Link URI Parser Definition
+          cat > .atx/deeplink-intent-parser.md << 'EOF'
+          # Transformation Specification: Android Deep Link & Parameter Parser
+
+          ## Objective
+          Implement robust URI deep-link parsing, query extraction, and state navigation across Android Activity/Compose routes.
+
+          ## Specifications
+          - Parse custom scheme and HTTPS URIs from intent data safely.
+          - Extract, sanitize, and type-check query parameters before passing them to ViewModels.
+          - Auto-fill state fields and trigger Luhn validation on credit card parameters passed via URIs.
+          - Add fallback navigation routes when deep-link parameters are missing or invalid.
+          EOF
+
+          # 9. Room to Encrypted SQLCipher Definition
+          cat > .atx/room-sqlcipher-migration.md << 'EOF'
+          # Transformation Specification: Encrypted Room Database Migration
+
+          ## Objective
+          Migrate raw SQLite or unencrypted Room databases to encrypted SQLCipher with Android Keystore integration.
+
+          ## Specifications
+          - Update `Room.databaseBuilder` to attach a `SupportFactory` backed by SQLCipher.
+          - Fetch database encryption keys dynamically from Android `KeyStore`.
+          - Create explicit migration strategies (`Migration(1, 2)`) for schema updates without data loss.
+          - Ensure all DAO methods return `Flow<T>` or `suspend` functions.
+          EOF
+
+          # 10. SharedPreferences to Proto DataStore Definition
+          cat > .atx/sharedprefs-to-datastore.md << 'EOF'
+          # Transformation Specification: SharedPreferences to Encrypted Proto DataStore
+
+          ## Objective
+          Replace legacy `SharedPreferences` with Jetpack Proto DataStore.
+
+          ## Specifications
+          - Define Protocol Buffers schemas (`.proto`) for application configuration and user profiles.
+          - Write migration code using `SharedPreferencesMigration`.
+          - Replace synchronous `.getString()` / `.edit()` with asynchronous `DataStore<T>.data` `Flow` emissions and `.updateData()` transforms.
+          EOF
+
+          # 11. WebSocket to SSE Definition
+          cat > .atx/websocket-to-sse.md << 'EOF'
+          # Transformation Specification: Real-Time SSE Client Engine
+
+          ## Objective
+          Convert bi-directional WebSocket connections to lightweight HTTP Server-Sent Events (SSE) streams for real-time telemetry logs.
+
+          ## Specifications
+          - Implement SSE handling using OkHttp's `EventSource` and `EventSourceListener`.
+          - Auto-reconnect with exponential backoff on network dropouts, preserving the `Last-Event-ID` header.
+          - Stream incoming event streams into Kotlin `SharedFlow` or `StateFlow` primitives.
+          EOF
+
+          # 12. OAuth2 PKCE Flow Definition
+          cat > .atx/oauth2-pkce-implementation.md << 'EOF'
+          # Transformation Specification: OAuth2 Authorization Code Flow with PKCE
+
+          ## Objective
+          Implement secure OAuth2 authentication using Proof Key for Code Exchange (PKCE) for mobile/native clients.
+
+          ## Specifications
+          - Generate cryptographically secure `code_verifier` strings and compute SHA-256 `code_challenge`.
+          - Store access tokens, refresh tokens, and expiration metadata in Android `KeyStore`.
+          - Implement an OkHttp `Authenticator` that automatically intercepts HTTP 401s, executes token refresh calls, and retries original requests seamlessly.
+          EOF
+
+          # 13. Webhook Telemetry Logger Definition
+          cat > .atx/webhook-telemetry-logger.md << 'EOF'
+          # Transformation Specification: Async Non-Blocking Telemetry Webhooks
+
+          ## Objective
+          Implement a multi-platform background logging engine that formats system errors into Discord and Slack rich embeds.
+
+          ## Specifications
+          - Format JSON payloads matching Discord (`embeds`) and Slack (`blocks`) API constraints.
+          - Execute network operations non-blockingly using `Dispatchers.IO` with fire-and-forget fault tolerance.
+          - Throttle log transmissions to avoid hitting rate limits.
+          EOF
+
+          # 14. WorkManager CoroutineWorker Definition
+          cat > .atx/workmanager-coroutine-worker.md << 'EOF'
+          # Transformation Specification: Legacy Service to WorkManager CoroutineWorker
+
+          ## Objective
+          Refactor background `IntentService` or `JobScheduler` code into Jetpack `WorkManager` utilizing `CoroutineWorker`.
+
+          ## Specifications
+          - Replace `Worker` or `IntentService` with `CoroutineWorker` overriding `doWork()`.
+          - Add explicit battery, network (`NetworkType.CONNECTED`), and storage constraints using `Constraints.Builder`.
+          - Handle execution retry policies with exponential backoff (`BackoffPolicy.EXPONENTIAL`).
+          EOF
+
+          # 15. Type-Safe Compose Navigation Definition
+          cat > .atx/compose-typesafe-navigation.md << 'EOF'
+          # Transformation Specification: Type-Safe Jetpack Compose Navigation
+
+          ## Objective
+          Upgrade string-route based Navigation Compose to Android's type-safe `@Serializable` destination routes.
+
+          ## Specifications
+          - Define navigation routes as Kotlin `@Serializable` objects and data classes instead of raw URL string paths.
+          - Replace `navController.navigate("route_name/123")` with type-safe instances like `navController.navigate(ProfileRoute(id = 123))`.
+          - Extract route parameters safely inside `composable<ProfileRoute>` scope without string parsing.
+          EOF
+
+          # 16. Strict No-Brevity, No-Stubs, No-Placeholders Rule Definition
+          cat > .atx/strict-no-stubs-no-placeholders.md << 'EOF'
+          # Transformation Specification: Zero Stubs, Zero Placeholders & Full Implementation Standard
+
+          ## Executive Objective
+          Scan every file across the codebase and replace all stubbed logic, partial code implementations, mock return statements, placeholder strings, and comments indicating pending work with fully implemented, production-grade code.
+
+          ## Mandates & Constraints
+          - **Forbidden Patterns:** Ban and eliminate `TODO`, `FIXME`, `NOT_IMPLEMENTED`, `TODO()`, `throw NotImplementedError()`, empty functions, empty lambdas `{ }`, and hardcoded placeholder return values (e.g., `return ""`, `return null`, `return true` used to bypass compiler errors).
+          - **No Code Truncation / No Brevity:** Every generated file must be fully written out from package header to closing brace. Do NOT omit methods, drop import blocks, or use comments like `// ... rest of code unchanged`.
+          - **Real Execution Mechanics:**
+            - Replace fake/simulated network calls (`delay(1000)`) with real OkHttp3 execution pipelines.
+            - Replace mock list generators (`listOf("Item 1", "Item 2")`) with dynamic repository fetching and state flow emissions.
+            - Ensure every UI component, ViewModel method, Interceptor, and worker contains complete error-handling logic with proper exceptions, retries, and state emissions.
+          EOF
+
+      # -- 10. Execute All Custom Transformations ---------------------
+      - name: Run AWS Transform Pipeline
+        run: |
+          BUILD_CMD="./gradlew assembleDebug --build-cache --parallel --no-daemon"
+
+          for def_file in .atx/*.md; do
+            def_name=$(basename "$def_file" .md)
+            echo "=========================================================="
+            echo " Executing Transformation: $def_name"
+            echo "=========================================================="
+            
+            atx custom def exec \
+              --transformation-name "$def_name" \
+              --transformation-definition-path "$def_file" \
+              --code-repository-path "." \
+              --build-command "$BUILD_CMD" \
+              --non-interactive \
+              --trust-all-tools
+          done
+
+      # -- 11. Verify Debug Build Compiles ---------------------------
       - name: Build debug APK
         run: ./gradlew assembleDebug --build-cache --parallel --no-daemon
 
-      # -- 11. Run Unit Tests ----------------------------------------
+      # -- 12. Run Unit Tests ----------------------------------------
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest --no-daemon
         continue-on-error: true
 
-      # -- 12. Upload Test Reports Artifact --------------------------
+      # -- 13. Upload Test Reports Artifact --------------------------
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -217,7 +355,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # -- 13. Upload Debug APK Artifact -----------------------------
+      # -- 14. Upload Debug APK Artifact -----------------------------
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
@@ -225,7 +363,7 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 7
 
-      # -- 14. Commit & Push Branch -----------------------------------
+      # -- 15. Commit & Push Branch -----------------------------------
       - name: Commit transformed code
         if: ${{ github.event.inputs.dry_run != 'true' }}
         env:
@@ -234,46 +372,39 @@ jobs:
           git config user.name "aws-transform-bot"
           git config user.email "aws-transform-bot@users.noreply.github.com"
           
-          BRANCH_NAME="transform/stub-rewrite-${{ github.run_number }}"
+          BRANCH_NAME="transform/comprehensive-rewrite-${{ github.run_number }}"
           git checkout -b "$BRANCH_NAME"
           
           git add -A
           if git diff --staged --quiet; then
             echo "No changes detected following transformation execution."
           else
-            git commit -m "feat: rewrite stubs to production code via AWS Transform
+            git commit -m "feat: apply comprehensive transformations via AWS Transform
 
             Run: ${{ github.run_number }} | $(date -u +'%Y-%m-%d %H:%M UTC')"
             git push origin "$BRANCH_NAME"
           fi
 
-      # -- 15. Create Pull Request ------------------------------------
+      # -- 16. Create Pull Request ------------------------------------
       - name: Create Pull Request
         if: ${{ github.event.inputs.dry_run != 'true' }}
         uses: peter-evans/create-pull-request@v6
         with:
-          branch: transform/stub-rewrite-${{ github.run_number }}
-          title: "AWS Transform: Rewrite stubs -> production code (Run #${{ github.run_number }})"
+          branch: transform/comprehensive-rewrite-${{ github.run_number }}
+          title: "AWS Transform: Comprehensive Code Modernization (Run #${{ github.run_number }})"
           body: |
-            ## Automated Stub Rewrite - Orchestrator Pro
+            ## Automated Comprehensive Modernization - Orchestrator Pro
 
-            Generated by **AWS Transform Custom** (`atx`). Review the refactored code before merging into `main`.
+            Executed 16 custom transformations via **AWS Transform Custom** (`atx`):
+            - **Strict Code Completeness:** Enforced zero stubs, zero placeholders, and full non-truncated source code implementations.
+            - **HMAC & Anti-Fingerprinting:** Direct API signing, dynamic route interception, and TLS/JA4 browser alignment.
+            - **UI Modernization:** Material 3 upgrade and type-safe Jetpack Compose navigation.
+            - **Networking & Automation:** Retrofit-to-OkHttp refactoring, Playwright Kotlin port, proxy/CAPTCHA solving, and SSE stream engine.
+            - **Security & Storage:** SQLCipher encrypted Room DB, Proto DataStore, deep-link URI parsing, and OAuth2 PKCE auth flow.
+            - **Background Work & Telemetry:** CoroutineWorker migration and async Discord/Slack webhook logger.
 
-            ### Refactoring Highlights
-            - **Playwright & HMAC Framework:** Implemented direct `APIRequestContext` signing, dynamic `page.route()` interception, and hybrid DOM secret extraction.
-            - **`MainActivity.kt`:** Added functional Material3 `ModalNavigationDrawer` with application metadata.
-            - **`MonitorScreen.kt`:** Generated missing Jetpack Compose screen with job counters, dynamic lists, and telemetry logging.
-            - **`OrchestratorViewModel.kt`:** Implemented exponential backoff retry mechanism ($2^n \times 1000$ ms).
-            - **`RealWebExecutor.kt`:** Converted to suspending OkHttp3 network calls with HTTP 429 retry handling, dynamic HMAC signatures, and browser-aligned HTTP headers.
-            - **Discord Webhook:** Hardened async HTTP logger under `Dispatchers.IO`.
-            - **Config & URI Logic:** Integrated auto-fill parser and Luhn algorithm credit card validation.
-
-            ### Review & QA Checklist
-            - [ ] Verify navigation drawer behavior in emulator
-            - [ ] Run retry logic against a failing test pipeline job
-            - [ ] Confirm OkHttp/Playwright endpoints and HMAC headers align with API specs
-            - [ ] Test Luhn validation logic against test card numbers
+            Review the refactored code before merging into `main`.
           labels: |
             aws-transform
             automated
-            stub-rewrite
+            comprehensive-rewrite
