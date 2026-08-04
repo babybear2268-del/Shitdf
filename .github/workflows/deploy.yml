@@ -95,7 +95,7 @@ jobs:
 # Transformation Specification: Dynamic HMAC Signing via Network Interception
 
 ## Objective
-Implement on-the-fly HMAC-SHA256 signing via Playwright request routing for dynamic DOM-rendered applications.
+          Implement on-the-fly HMAC-SHA256 signing via Playwright request routing for dynamic DOM-rendered applications.
 
 ## Specifications
 - Intercept target API endpoint patterns (e.g., `**/api/v2/**`) via `page.route()`.
