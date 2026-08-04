@@ -45,14 +45,14 @@ jobs:
             gradle wrapper --gradle-version 8.7
           fi
           chmod +x gradlew
-
-      - name: 🔐 Configure AWS credentials
+        name: 🔐 Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4.1.0
         with:
           role-to-assume: arn:aws:iam::228060739480:role/github-actions-role
           role-session-name: OrchestratorProTransform-${{ github.run_number }}
           aws-region: us-east-1
           role-duration-seconds: 3600
+
 
       # -- 4. Generate Debug Keystore ---------------------------------
       - name: Generate debug keystore
