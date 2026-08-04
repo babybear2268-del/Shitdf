@@ -7,7 +7,7 @@ on:
       dry_run:
         description: 'Dry run only (analyze, no commit)'
         required: false
-        default: 'false'
+        default: false
         type: boolean
 
 # Required for GitHub OIDC authentication to AWS
