@@ -1,6 +1,5 @@
 name: 🤖 AWS Transform — Rewrite Stubs (Orchestrator Pro)
-
-On:
+on: 
   push:
     branches: [main]
   workflow_dispatch:
