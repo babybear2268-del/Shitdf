@@ -46,6 +46,14 @@ jobs:
           fi
           chmod +x gradlew
 
+# ── 6. AWS credentials (OIDC — no long-lived keys) ─────────────
+      - name: 🔐 Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::228060739480:role/OrchestratorProGitHubActionsRole
+          role-session-name: OrchestratorProTransform-${{ github.run_number }}
+          aws-region: us-east-1
+          role-duration-seconds: 3600
       # -- 4. Generate Debug Keystore ---------------------------------
       - name: Generate debug keystore
         run: |
@@ -60,7 +68,7 @@ jobs:
             -keypass android \
             -dname "CN=Android Debug,O=Android,C=US"
           cp $HOME/.android/debug.keystore ${{ github.workspace }}/debug.keystore
-
+          
       # -- 5. Cache Gradle Packages -----------------------------------
       - name: Cache Gradle packages
         uses: actions/cache@v4
@@ -81,14 +89,6 @@ jobs:
       - name: Verify ATX installation
         run: atx --version
 
-# ── 6. AWS credentials (OIDC — no long-lived keys) ─────────────
-      - name: 🔐 Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::228060739480:role/OrchestratorProGitHubActionsRole
-          role-session-name: OrchestratorProTransform-${{ github.run_number }}
-          aws-region: us-east-1
-          role-duration-seconds: 3600
 
 
       # -- 8. Write Transformation Definition & Prompts ---------------
