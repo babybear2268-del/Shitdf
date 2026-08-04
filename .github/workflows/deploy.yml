@@ -1,5 +1,5 @@
 name: 🤖 AWS Transform — Rewrite Stubs (Orchestrator Pro)
-on: 
+on:
   push:
     branches: [main]
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
         default: 'false'
         type: boolean
 
-# Required for OIDC authentication
+# Required for GitHub OIDC authentication to AWS
 permissions:
   id-token: write
   contents: write
@@ -45,12 +45,12 @@ jobs:
           fi
           chmod +x gradlew
 
-      # -- 4. Configure AWS Credentials -------------------------------
-      - name: 🔐 Configure AWS credentials
+      # -- 4. Configure AWS Credentials (OIDC Authentication) ---------
+      - name: 🔐 Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4.1.0
         with:
           role-to-assume: arn:aws:iam::228060739480:role/github-actions-role
-          role-session-name: OrchestratorProTransform-${{ github.run_number }}
+          role-session-name: OrchestratorPro-Transform-${{ github.run_number }}
           aws-region: us-east-1
           role-duration-seconds: 3600
 
@@ -319,6 +319,9 @@ jobs:
 
       # -- 10. Execute All Custom Transformations ---------------------
       - name: Run AWS Transform Pipeline
+        env:
+          ATX_PROFILE_ARN: arn:aws:transform:us-east-1:228060739480:profile/XXE73CNGP3G4
+          ATX_TENANT_ID: 7223606c1e23777de
         run: |
           BUILD_CMD="./gradlew assembleDebug --build-cache --parallel --no-daemon"
 
@@ -329,6 +332,8 @@ jobs:
             echo "=========================================================="
             
             atx custom def exec \
+              --profile-arn "$ATX_PROFILE_ARN" \
+              --tenant-id "$ATX_TENANT_ID" \
               --transformation-name "$def_name" \
               --transformation-definition-path "$def_file" \
               --code-repository-path "." \
