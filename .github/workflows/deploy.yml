@@ -1,4 +1,4 @@
-name: ðŸ¤– AWS Transform â€” Rewrite Stubs (Orchestrator Pro)
+name: 🤖 AWS Transform — Rewrite Stubs (Orchestrator Pro)
 
 on:
   push:
@@ -23,25 +23,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # â”€â”€ 1. Checkout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      - name: ðŸ“¥ Checkout repository
+      # ── 1. Checkout ────────────────────────────────────────────────
+      - name: 📥 Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # â”€â”€ 2. Java 11 Setup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      - name: â˜• Set up JDK 11
+      # ── 2. Java 11 Setup ───────────────────────────────────────────
+      - name: ☕ Set up JDK 11
         uses: actions/setup-java@v4
         with:
           java-version: '11'
           distribution: 'temurin'
 
-      # â”€â”€ 3. Make Gradle Wrapper Executable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      - name: ðŸ”“ Grant execute permission for gradlew
-        run: chmod +x gradlew || true
+      # ── 3. Make Gradle Wrapper Executable ──────────────────────────
+      - name: 🔓 Grant execute permission for gradlew
+        run: chmod +x gradlew
 
-      # â”€â”€ 4. Generate Debug Keystore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      - name: ðŸ”‘ Generate debug keystore
+      # ── 4. Generate Debug Keystore ─────────────────────────────────
+      - name: 🔑 Generate debug keystore
         run: |
           mkdir -p $HOME/.android
           keytool -genkey -v \
@@ -53,10 +53,10 @@ jobs:
             -storepass android \
             -keypass android \
             -dname "CN=Android Debug,O=Android,C=US"
-          cp $HOME/.android/debug.keystore ${{ github.workspace }}/debug.keystore || true
+          cp $HOME/.android/debug.keystore ${{ github.workspace }}/debug.keystore
 
-      # â”€â”€ 5. Cache Gradle Packages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      - name: ðŸ“¦ Cache Gradle packages
+      # ── 5. Cache Gradle Packages ───────────────────────────────────
+      - name: 📦 Cache Gradle packages
         uses: actions/cache@v4
         with:
           path: |
@@ -66,17 +66,17 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      # â”€â”€ 6. Install AWS Transform CLI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      - name: ðŸ”§ Install AWS Transform CLI
+      # ── 6. Install AWS Transform CLI ───────────────────────────────
+      - name: 🔧 Install AWS Transform CLI
         run: |
           curl -fsSL https://transform-cli.awsstatic.com/install.sh | bash
           echo "$HOME/.atx/bin" >> $GITHUB_PATH
 
-      - name: âœ… Verify ATX installation
+      - name: ✅ Verify ATX installation
         run: atx --version
 
-      # â”€â”€ 7. Configure AWS Credentials via OIDC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      - name: ðŸ” Configure AWS credentials
+      # ── 7. Configure AWS Credentials via OIDC ──────────────────────
+      - name: 🔐 Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::228060739480:role/OrchestratorProGitHubActionsRole
@@ -84,8 +84,8 @@ jobs:
           aws-region: us-east-1
           role-duration-seconds: 3600
 
-      # â”€â”€ 8. Write Expanded Transformation Definition & Prompts â”€â”€â”€â”€â”€â”€
-      - name: ðŸ“ Write Orchestrator Pro transformation definition
+      # ── 8. Write Transformation Definition & Prompts ───────────────
+      - name: 📝 Write Orchestrator Pro transformation definition
         run: |
           mkdir -p .atx
           cat > .atx/orchestrator-stub-rewrite.md << 'EOF'
@@ -174,8 +174,8 @@ jobs:
             - Show UI validation state errors on text input fields if Luhn validation fails.
           EOF
 
-      # â”€â”€ 9. Execute AWS Transform CLI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      - name: ðŸš€ Run AWS Transform stub rewrite
+      # ── 9. Execute AWS Transform CLI ──────────────────────────────
+      - name: 🚀 Run AWS Transform stub rewrite
         run: |
           atx custom def exec \
             --transformation-name "orchestrator-stub-rewrite" \
@@ -185,16 +185,17 @@ jobs:
             --non-interactive \
             --trust-all-tools
 
-      # â”€â”€ 10. Verify Debug Build Compiles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      - name: ðŸ—ï¸ Build debug APK
-        run: gradle assembleDebug --stacktrace
+      # ── 10. Verify Debug Build Compiles ───────────────────────────
+      - name: 🏗️ Build debug APK
+        run: ./gradlew assembleDebug --build-cache --parallel --no-daemon
 
-      # â”€â”€ 11. Run Unit Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      - name: ðŸ§ª Run unit tests
-        run: gradle testDebugUnitTest || true
+      # ── 11. Run Unit Tests ────────────────────────────────────────
+      - name: 🧪 Run unit tests
+        run: ./gradlew testDebugUnitTest --no-daemon
+        continue-on-error: true
 
-      # â”€â”€ 12. Upload Test Reports Artifact â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      - name: ðŸ“Š Upload test results
+      # ── 12. Upload Test Reports Artifact ──────────────────────────
+      - name: 📊 Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -203,16 +204,16 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # â”€â”€ 13. Upload Debug APK Artifact â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      - name: ðŸ“± Upload debug APK
+      # ── 13. Upload Debug APK Artifact ─────────────────────────────
+      - name: 📱 Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: orchestrator-pro-transformed-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 7
 
-      # â”€â”€ 14. Commit & Push Branch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      - name: ðŸ’¾ Commit transformed code
+      # ── 14. Commit & Push Branch ───────────────────────────────────
+      - name: 💾 Commit transformed code
         if: ${{ github.event.inputs.dry_run != 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -233,19 +234,19 @@ jobs:
             git push origin "$BRANCH_NAME"
           fi
 
-      # â”€â”€ 15. Create Pull Request â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      - name: ðŸ”€ Create Pull Request
+      # ── 15. Create Pull Request ────────────────────────────────────
+      - name: 🔀 Create Pull Request
         if: ${{ github.event.inputs.dry_run != 'true' }}
         uses: peter-evans/create-pull-request@v6
         with:
           branch: transform/stub-rewrite-${{ github.run_number }}
-          title: "ðŸ¤– AWS Transform: Rewrite stubs â†’ production code (Run #${{ github.run_number }})"
+          title: "🤖 AWS Transform: Rewrite stubs → production code (Run #${{ github.run_number }})"
           body: |
-            ## ðŸ¤– Automated Stub Rewrite â€” Orchestrator Pro
+            ## 🤖 Automated Stub Rewrite — Orchestrator Pro
 
             Generated by **AWS Transform Custom** (`atx`). Review the refactored code before merging into `main`.
 
-            ### âœ… Refactoring Highlights
+            ### ✅ Refactoring Highlights
             - **Playwright & HMAC Framework:** Implemented direct `APIRequestContext` signing, dynamic `page.route()` interception, and hybrid DOM secret extraction.
             - **`MainActivity.kt`:** Added functional Material3 `ModalNavigationDrawer` with application metadata.
             - **`MonitorScreen.kt`:** Generated missing Jetpack Compose screen with job counters, dynamic lists, and telemetry logging.
@@ -254,7 +255,7 @@ jobs:
             - **Discord Webhook:** Hardened async HTTP logger under `Dispatchers.IO`.
             - **Config & URI Logic:** Integrated auto-fill parser and Luhn algorithm credit card validation.
 
-            ### ðŸ‘€ Review & QA Checklist
+            ### 👀 Review & QA Checklist
             - [ ] Verify navigation drawer behavior in emulator
             - [ ] Run retry logic against a failing test pipeline job
             - [ ] Confirm OkHttp/Playwright endpoints and HMAC headers align with API specs
