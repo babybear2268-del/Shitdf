@@ -90,13 +90,17 @@ jobs:
 
       - name: Verify ATX installation
         run: atx --version
-
-      # -- 8. Write Transformation Definition & Prompts ---------------
-      - name: Write Orchestrator Pro transformation definition
+              # ── 8. Run AWS Transform ───────────────────────────────────────
+      - name: 🚀 Run AWS Transform stub rewrite
         run: |
-          mkdir -p .atx
-          cat > .atx/orchestrator-stub-rewrite.md << 'EOF'
-          # Transformation Specification: Orchestrator Pro Stub Refactoring
+          atx custom def exec \
+            -n "orchestrator-stub-rewrite" \
+            -p "." \
+            -c "./gradlew assembleDebug --build-cache --parallel --no-daemon" \
+            -g "additionalPlanContext=$(cat .atx/orchestrator-stub-rewrite.md)" \
+            -x \
+            -t
+
 
           ## Executive Objective
           Analyze, refactor, and replace all incomplete stub implementations, placeholder functions, empty lambdas, and simulated networking code across the project. Ensure every component conforms to production-grade Kotlin, Coroutines, Jetpack Compose, OkHttp, and Playwright framework standards.
