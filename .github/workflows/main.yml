@@ -1,4 +1,4 @@
-name: AWS Transform - Rewrite Stubs (Orchestrator Pro)
+name: 🤖 AWS Transform — Rewrite Stubs (Orchestrator Pro)
 
 on:
   push:
@@ -6,11 +6,12 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Dry run only (analyze, no commit/PR)'
+        description: 'Dry run only (analyze, no commit)'
         required: false
         default: 'false'
         type: boolean
 
+# Required for OIDC token generation
 permissions:
   id-token: write
   contents: write
@@ -22,35 +23,65 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ── 1. Checkout Code ─────────────────────────────────────────────
-      - name: Checkout repository
+
+      # ── 1. Checkout ────────────────────────────────────────────────
+      - name: 📥 Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # ── 2. Set Up JDK 11 ──────────────────────────────────────────────
-      - name: Set up JDK 11
+      # ── 2. Java 11 ────────────────────────────────────────────────
+      - name: ☕ Set up JDK 11
         uses: actions/setup-java@v4
         with:
           java-version: '11'
           distribution: 'temurin'
 
-      # ── 3. Gradle Wrapper Setup ──────────────────────────────────────
-      - name: Generate Gradle wrapper if missing
+      # ── 3. Node.js 22 (required by ATX CLI) ──────────────────────
+      - name: 📦 Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # ── 4. Install AWS Transform CLI ──────────────────────────────
+      - name: 🔧 Install AWS Transform CLI
         run: |
-          if [ ! -f ./gradlew ]; then
-            echo "gradlew not found. Generating wrapper..."
-            sudo apt-get update && sudo apt-get install -y gradle
+          curl -fsSL https://transform-cli.awsstatic.com/install.sh | bash
+          echo "$HOME/.atx/bin" >> $GITHUB_PATH
+
+      - name: ✅ Verify ATX installation
+        run: atx --version
+
+      # ── 5. Gradle cache ───────────────────────────────────────────
+      - name: 📦 Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle.kts', '**/libs.versions.toml') }}
+          restore-keys: gradle-
+
+      # ── 6. Set up Gradle ──────────────────────────────────────────
+      - name: 🔧 Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.7'
+
+      # ── 7. Ensure gradlew exists and is executable ────────────────
+      - name: 🔑 Ensure gradlew exists and is executable
+        run: |
+          if [ ! -f "gradlew" ]; then
+            echo "gradlew not found — generating wrapper..."
             gradle wrapper --gradle-version 8.7
           fi
           chmod +x gradlew
 
-      # ── 4. Generate Android Debug Keystore ───────────────────────────
-      - name: Generate debug keystore
+      # ── 8. Generate debug keystore ────────────────────────────────
+      - name: 🔑 Generate debug keystore
         run: |
-          mkdir -p $HOME/.android
           keytool -genkey -v \
-            -keystore $HOME/.android/debug.keystore \
+            -keystore ${{ github.workspace }}/debug.keystore \
             -alias androiddebugkey \
             -keyalg RSA \
             -keysize 2048 \
@@ -58,20 +89,8 @@ jobs:
             -storepass android \
             -keypass android \
             -dname "CN=Android Debug,O=Android,C=US"
-          cp $HOME/.android/debug.keystore ${{ github.workspace }}/debug.keystore
 
-      # ── 5. Cache Gradle Dependencies ─────────────────────────────────
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', '**/libs.versions.toml') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
-
-      # ── 6. Authenticate to AWS via OIDC ──────────────────────────────
+      # ── 9. AWS credentials via OIDC (no long-lived keys) ──────────
       - name: 🔐 Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4.1.0
         with:
@@ -80,148 +99,99 @@ jobs:
           aws-region: us-east-1
           role-duration-seconds: 3600
 
-      # ── 7. Install AWS Transform CLI ─────────────────────────────────
-      - name: 🛠️ Install AWS Transform CLI
-        run: |
-          if ! command -v atx &> /dev/null; then
-            echo "Installing AWS Transform CLI..."
-            curl -sSL https://desktop-release.q.us-east-1.amazonaws.com/atx/installer.sh | sh
-            echo "$HOME/.atx/bin" >> $GITHUB_PATH
-          fi
-
-      # ── 8. Write Complete Transformation Definition File ────────────
-      - name: 📝 Write Orchestrator Pro complete transformation definition
+      # ── 10. Write transformation config ───────────────────────────
+      - name: 📝 Write transformation config
         run: |
           mkdir -p .atx
-          cat > .atx/orchestrator-stub-rewrite.md << 'EOF'
-          # AWS Transform Definition: Orchestrator Pro Stub Rewrite
-
-          additionalPlanContext=This is an Android Kotlin Jetpack Compose MVVM application targeting API 23 to 36 with Java 11 runtime compatibility.
-
-          ## Core Mandate
-          Analyze the entire repository for stubbed methods, placeholder comments, TODO statements, empty lambdas, and non-functional mock code. Rewrite every identified stub with production-grade, hardened Kotlin code adhering to clean architecture standards.
-
-          ## Complete Module Specifications
-
-          ### 1. UI & Navigation Layer (`MainActivity.kt`, `MonitorScreen.kt`)
-          - **Navigation Drawer Wiring:** Fix the empty `onMenuClick` lambda in `MainActivity.kt` by connecting it to open a functional Material3 `ModalNavigationDrawer` displaying app version info and navigation items.
-          - **`MonitorScreen.kt` Creation & Implementation:** Create or complete `MonitorScreen.kt` using Jetpack Compose:
-            - Build active and queued job counter cards using Material3 `Card`.
-            - Implement a dynamic `LazyColumn` listing ongoing workflow tasks with status indicators.
-            - Include real-time telemetry activity logs formatted with level-based color highlights (INFO, WARN, ERROR).
-
-          ### 2. State & Execution Control (`OrchestratorViewModel.kt`)
-          - **Exponential Backoff Retry:** Implement `retryJob()` using Kotlin Coroutines and `StateFlow`.
-          - **Backoff Formula:** Delay retries exponentially using the calculation: `delay = (2^n) * 1000 ms`, where `n` is the current zero-based retry attempt.
-          - **Circuit Breaker Constraint:** Limit maximum retries to 5. If failure persists after 5 attempts, transition job status to `Failed`.
-
-          ### 3. Network Executor Layer (`RealWebExecutor.kt`)
-          - **OkHttp3 Refactoring:** Replace all mock or stubbed HTTP request code with suspending OkHttp3 execution running on `Dispatchers.IO`.
-          - **HTTP 429 Retry Mechanism:** Automatically parse the `Retry-After` HTTP header upon receiving 429 responses and pause before retrying.
-          - **HMAC Signatures:** Compute dynamic HMAC-SHA256 headers for request payload integrity using secret keys supplied via configuration.
-          - **Headers Alignment:** Apply standard browser-like User-Agent and Accept headers across all outbound requests.
-          - **Cleanup:** Remove all deprecated or non-functional Playwright references from the project.
-
-          ### 4. Logging & Utility Modules (`DiscordWebhookLogger.kt`, `LuhnValidator.kt`, `UriParser.kt`)
-          - **Discord Webhook Hardening:** Refactor `DiscordWebhookLogger.kt` to run asynchronously on `Dispatchers.IO` with `try-catch` safety blocks to guarantee network failures do not interrupt primary app flows.
-          - **URI Parsing & Auto-Fill:** Implement URI string auto-filling and validation logic.
-          - **Luhn Algorithm Checksum:** Implement credit card number validation using the standard Luhn checksum algorithm (doubling every second digit from right to left, subtracting 9 if greater than 9, and validating total modulo 10).
-
-          ## Technical Constraints
-          - **Dependencies:** Use ONLY existing dependencies declared in `gradle/libs.versions.toml`. Do not introduce new third-party libraries.
-          - **Tooling:** Rely on standard Kotlin Coroutines (`StateFlow`, `SharedFlow`), Moshi for JSON handling, Room for persistent data, and OkHttp3 for networking.
-          - **Build Target:** Ensure all modifications compile cleanly under Java 11 and target Android SDK 36 (`minSdk 23`).
+          cat > .atx/config.json << 'EOF'
+          {
+            "transformationName": "orchestrator-stub-rewrite",
+            "buildCommand": "./gradlew assembleDebug --build-cache --parallel --no-daemon",
+            "additionalPlanContext": "Android Kotlin Jetpack Compose MVVM app. Rewrite all stub and placeholder implementations with production-grade Kotlin code. Fix: (1) empty onMenuClick lambda in MainActivity.kt — implement ModalNavigationDrawer with app version, about dialog, settings nav. (2) Missing MonitorScreen.kt — create full Compose screen with job status list, telemetry preview, deploy and pipeline run buttons. (3) retryJob() in OrchestratorViewModel.kt — exponential backoff max 3 attempts, delays 2s/4s/8s, StateFlow status updates, telemetry logging. (4) RealWebExecutor HTTP stubs — OkHttp3 suspending calls, 30s connect / 60s read timeouts, HTTP 429 backoff. (5) Remove all Playwright references, replace with Kotlin string/regex HTML parsing. (6) Discord webhook — OkHttp3 POST with viewModelScope, silent failure handling. (7) URI auto-fill — robust query param parsing with Luhn algorithm card validation. Tech stack: Kotlin, Jetpack Compose, Material3, MVVM, StateFlow, Room, OkHttp3, Retrofit, Moshi, Kotlin Coroutines, viewModelScope. Gradle KTS, Java 11, minSdk 23, targetSdk 36. Do NOT add new dependencies — use only libs already in libs.versions.toml."
+          }
           EOF
 
-      # ── 9. Register ATX Definition ──────────────────────────────────
-      - name: 📌 Register Custom ATX Definition
-        run: |
-          export PATH="$HOME/.atx/bin:$PATH"
-          atx custom def register \
-            --name "orchestrator-stub-rewrite" \
-            --definition-path ".atx/orchestrator-stub-rewrite.md" \
-            --force || true
-
-      # ── 10. Execute AWS Transform Stub Rewrite ──────────────────────
+      # ── 11. Run AWS Transform ─────────────────────────────────────
       - name: 🚀 Run AWS Transform stub rewrite
+        env:
+          ATX_SERVICE_PROFILE_ARN: arn:aws:transform:us-east-1:228060739480:profile/XXE73CNGP3G4
+          ATX_TENANT_ID: 7223606c1e23777de
         run: |
-          export PATH="$HOME/.atx/bin:$PATH"
           atx custom def exec \
-            --transformation-name "orchestrator-stub-rewrite" \
-            --transformation-definition-path ".atx/orchestrator-stub-rewrite.md" \
-            --code-repository-path "." \
-            --build-command "./gradlew assembleDebug --build-cache --parallel --no-daemon" \
-            --non-interactive \
-            --trust-all-tools
+            -p "." \
+            -c "./gradlew assembleDebug --build-cache --parallel --no-daemon" \
+            -g "file://.atx/config.json" \
+            -x \
+            -t
 
-      # ── 11. Verify Debug Build Compiles ─────────────────────────────
-      - name: Build debug APK
+      # ── 12. Build debug APK ───────────────────────────────────────
+      - name: 🏗️ Build debug APK
         run: ./gradlew assembleDebug --build-cache --parallel --no-daemon
 
-      # ── 12. Run Unit Tests ──────────────────────────────────────────
-      - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --no-daemon
+      # ── 13. Run unit tests ────────────────────────────────────────
+      - name: 🧪 Run unit tests
+        run: ./gradlew testDebugUnitTest
         continue-on-error: true
 
-      # ── 13. Upload Test Reports Artifact ────────────────────────────
-      - name: Upload test results
+      # ── 14. Upload test results ───────────────────────────────────
+      - name: 📊 Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: test-results-${{ github.run_number }}
           path: app/build/reports/tests/
-          retention-days: 7
-          if-no-files-found: ignore
 
-      # ── 14. Upload Debug APK Artifact ───────────────────────────────
-      - name: Upload debug APK
+      # ── 15. Upload debug APK ──────────────────────────────────────
+      - name: 📱 Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: orchestrator-pro-transformed-debug
+          name: orchestrator-pro-debug-${{ github.run_number }}
           path: app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 7
 
-      # ── 15. Commit Local Changes ─────────────────────────────────────
-      - name: Commit transformed code locally
+      # ── 16. Commit transformed code to new branch ─────────────────
+      - name: 💾 Commit transformed code
         if: ${{ github.event.inputs.dry_run != 'true' }}
         run: |
           git config user.name "aws-transform-bot"
           git config user.email "aws-transform-bot@users.noreply.github.com"
+          git checkout -b transform/stub-rewrite-${{ github.run_number }}
           git add -A
-          if git diff --staged --quiet; then
-            echo "No changes detected following transformation execution."
-          else
-            git commit -m "feat: rewrite stubs to production code via AWS Transform (Run #${{ github.run_number }})"
-          fi
+          git diff --staged --quiet || git commit -m "feat: rewrite stubs to production code via AWS Transform
 
-      # ── 16. Create Pull Request ──────────────────────────────────────
-      - name: Create Pull Request
+          Run: ${{ github.run_number }} | $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push origin transform/stub-rewrite-${{ github.run_number }}
+
+      # ── 17. Open Pull Request ─────────────────────────────────────
+      - name: 🔀 Create Pull Request
         if: ${{ github.event.inputs.dry_run != 'true' }}
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v7
         with:
-          commit-message: "feat: rewrite stubs to production code via AWS Transform"
           branch: transform/stub-rewrite-${{ github.run_number }}
-          delete-branch: true
-          title: "AWS Transform: Rewrite stubs -> production code (Run #${{ github.run_number }})"
+          title: "🤖 AWS Transform: Rewrite stubs → production code (Run #${{ github.run_number }})"
           body: |
-            ## Automated Stub Rewrite - Orchestrator Pro
+            ## 🤖 Automated Stub Rewrite — Orchestrator Pro
 
-            Generated by **AWS Transform Custom** (`atx`). Review the refactored code before merging into `main`.
+            Generated by **AWS Transform Custom**. Review before merging.
 
-            ### Refactoring Highlights
-            - **`MainActivity.kt`:** Added functional Material3 `ModalNavigationDrawer` with application metadata.
-            - **`MonitorScreen.kt`:** Generated missing Jetpack Compose screen with job counters, dynamic lists, and telemetry logging.
-            - **`OrchestratorViewModel.kt`:** Implemented exponential backoff retry mechanism ($2^n \times 1000$ ms).
-            - **`RealWebExecutor.kt`:** Converted to suspending OkHttp3 network calls with HTTP 429 retry handling, dynamic HMAC signatures, and browser-aligned HTTP headers.
-            - **Discord Webhook:** Hardened async HTTP logger under `Dispatchers.IO`.
-            - **Config & URI Logic:** Integrated auto-fill parser and Luhn algorithm credit card validation.
+            ### ✅ Changes Made
+            - `onMenuClick` navigation drawer implemented
+            - `MonitorScreen.kt` created (was missing)
+            - `retryJob()` exponential backoff added
+            - `RealWebExecutor` OkHttp3 production HTTP
+            - Playwright stubs removed, replaced with Kotlin parsing
+            - Discord webhook hardened with silent failure handling
+            - URI auto-fill with Luhn card validation
 
-            ### Review & QA Checklist
-            - [ ] Verify navigation drawer behavior in emulator
-            - [ ] Run retry logic against a failing test pipeline job
-            - [ ] Confirm OkHttp endpoints and HMAC headers align with API specs
-            - [ ] Test Luhn validation logic against test card numbers
+            ### 👀 Review Checklist
+            - [ ] Verify drawer behavior matches UX intent
+            - [ ] Test retryJob() with a failing job
+            - [ ] Confirm OkHttp3 portal endpoints are correct
+            - [ ] Validate Luhn check on card numbers
+            - [ ] Run instrumented tests on device/emulator
+
+            ---
+            🔗 [Monitor in AWS Transform Console](https://7223606c1e23777de.transform.us-east-1.on.aws/signin/)
           labels: |
             aws-transform
-            automate
+            automated
             stub-rewrite
