@@ -1,3 +1,5 @@
+name: 🤖 AWS Transform — Rewrite Stubs (Orchestrator Pro)
+
 On:
   push:
     branches: [main]
