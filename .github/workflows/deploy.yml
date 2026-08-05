@@ -27,6 +27,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Configure git user
+        run: |
+          git config user.name "aws-transform-bot"
+          git config user.email "aws-transform-bot@users.noreply.github.com"
+
       - name: Set up JDK 11
         uses: actions/setup-java@v4
         with:
@@ -44,7 +49,7 @@ jobs:
       - name: 🔐 Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::228060739480:role/github-actions-role
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           role-session-name: OrchestratorPro-Transform-${{ github.run_number }}
           aws-region: us-east-1
           role-duration-seconds: 3600
@@ -89,26 +94,312 @@ jobs:
       - name: Write All Transformation Definitions
         run: |
           mkdir -p .atx
-          printf '%s\n' "# Transformation Specification: Direct HMAC API Request Signing" "" "## Objective" "Implement direct HMAC-SHA256 request signing for API calls using \`APIRequestContext\` or OkHttp clients where DOM rendering is not required." "" "## Specifications" "- Construct canonical string: \`${METHOD}\\n${PATH_AND_SORTED_QUERY}\\n${TIMESTAMP}\\n${BODY}\`" "- Alphabetically sort URL query parameters prior to hashing to prevent signature mismatches." "- Calculate HMAC-SHA256 signature and attach via \`X-Timestamp\` and \`X-Signature\` headers." "- Handle server time offsets dynamically using HTTP \`Date\` response header comparisons to eliminate clock skew errors." > .atx/hmac-direct-api.md
 
-          cat > .atx/hmac-route-interception.md <<'EOF'
-# Transformation Specification: Dynamic HMAC Signing via Network Interception
+          # 1. Direct HMAC API Request Signing Definition
+          cat > .atx/hmac-direct-api.md << 'EOF'
+          # Transformation Specification: Direct HMAC API Request Signing
 
-## Objective
+          ## Objective
+          Implement direct HMAC-SHA256 request signing for API calls using `APIRequestContext` or OkHttp clients where DOM rendering is not required.
+
+          ## Specifications
+          - Construct canonical string: `${METHOD}\n${PATH_AND_SORTED_QUERY}\n${TIMESTAMP}\n${BODY}`
+          - Alphabetically sort URL query parameters prior to hashing to prevent signature mismatches.
+          - Calculate HMAC-SHA256 signature and attach via `X-Timestamp` and `X-Signature` headers.
+          - Handle server time offsets dynamically using HTTP `Date` response header comparisons to eliminate clock skew errors.
+          EOF
+
+          # 2. Dynamic Route Interception Definition
+          cat > .atx/hmac-route-interception.md << 'EOF'
+          # Transformation Specification: Dynamic HMAC Signing via Network Interception
+
+          ## Objective
           Implement on-the-fly HMAC-SHA256 signing via Playwright request routing for dynamic DOM-rendered applications.
 
-## Specifications
-- Intercept target API endpoint patterns (e.g., `**/api/v2/**`) via `page.route()`.
-- Compute HMAC-SHA256 signatures dynamically using request metadata (`method`, `pathname`, `timestamp`, `postData`).
-- Forward requests using `route.continue()` with attached `X-HMAC-Signature` and `X-HMAC-Timestamp` headers.
-- Wait for target DOM selectors (e.g., `.data-card`) before extracting scraped elements.
-EOF
+          ## Specifications
+          - Intercept target API endpoint patterns (e.g., `**/api/v2/**`) via `page.route()`.
+          - Compute HMAC-SHA256 signatures dynamically using request metadata (`method`, `pathname`, `timestamp`, `postData`).
+          - Forward requests using `route.continue()` with attached `X-HMAC-Signature` and `X-HMAC-Timestamp` headers.
+          - Wait for target DOM selectors (e.g., `.data-card`) before extracting scraped elements.
+          EOF
 
-          # ... other .atx files (omitted here for brevity, include the same content as prepared) ...
+          # 3. Anti-Fingerprinting Definition
+          cat > .atx/anti-fingerprinting.md << 'EOF'
+          # Transformation Specification: Anti-Fingerprinting (JA3 / JA4 Compliance)
+
+          ## Objective
+          Align request headers and browser launch arguments to match realistic client profiles and bypass anti-bot TLS fingerprinting checks.
+
+          ## Specifications
+          - Set custom user agents and align standard browser headers (`User-Agent`, `Referer`, `Accept-Language`, `Sec-Ch-Ua`).
+          - Configure launch flags (`--disable-blink-features=AutomationControlled`) when browser rendering is necessary to match ClientHello signatures.
+          - Support headful launch arguments for fallback execution when strict TLS fingerprinting is enforced.
+          EOF
+
+          # 4. Compose M2 to M3 Definition
+          cat > .atx/compose-m2-to-m3.md << 'EOF'
+          # Transformation Specification: Jetpack Compose Material 2 to Material 3
+
+          ## Objective
+          Refactor all Jetpack Compose UI components from Material 2 (`androidx.compose.material.*`) to Material 3 (`androidx.compose.material3.*`).
+
+          ## Specifications
+          - Replace `ScaffoldState` and `rememberScaffoldState()` with `Scaffold` inner padding and `SnackbarHostState`.
+          - Update `ButtonDefaults`, `CardDefaults`, and `TextFieldDefaults` to use M3 color schemes and shapes.
+          - Refactor `TopAppBar` and `MediumTopAppBar` to use M3 `TopAppBarScrollBehavior`.
+          - Update `MaterialTheme.colors` references to `MaterialTheme.colorScheme`.
+          EOF
+
+          # 5. Retrofit to OkHttp & Coroutines Definition
+          cat > .atx/retrofit-to-okhttp-coroutines.md << 'EOF'
+          # Transformation Specification: Networking Refactoring to OkHttp3 & Coroutines
+
+          ## Objective
+          Replace REST frameworks with low-level OkHttp3 suspending execution layers to enable custom interceptors and low-level TLS control.
+
+          ## Specifications
+          - Convert blocking synchronous calls into suspending functions using `suspendCancellableCoroutine`.
+          - Move execution contexts strictly to `Dispatchers.IO`.
+          - Implement a centralized `Interceptor` chain for authorization tokens, auto-retry on HTTP 429, and global error handling.
+          - Replace reflection-based JSON parsers with Kotlinx Serialization.
+          EOF
+
+          # 6. Playwright TS to Kotlin Definition
+          cat > .atx/playwright-ts-to-kotlin.md << 'EOF'
+          # Transformation Specification: Playwright TS to Native Kotlin Playwright
+
+          ## Objective
+          Port Node.js Playwright scripts into native Kotlin Playwright integrated into JVM test suites.
+
+          ## Specifications
+          - Convert TypeScript `async/await` patterns to Kotlin Coroutines or synchronous Playwright Java API calls.
+          - Translate `page.route()` interception callbacks into Kotlin lambda functions.
+          - Map Locator selectors (`page.locator(...)`) directly to JVM Playwright syntax.
+          EOF
+
+          # 7. Proxy & Captcha Interceptor Definition
+          cat > .atx/proxy-captcha-interceptor.md << 'EOF'
+          # Transformation Specification: Rotating Proxy & Captcha Solver Integration
+
+          ## Objective
+          Embed automatic IP rotation via proxy providers and automated CAPTCHA detection/resolution hooks into web automation pipelines.
+
+          ## Specifications
+          - Inject custom proxy authentication headers (`Proxy-Authorization`) dynamically per request.
+          - Detect Cloudflare/Turnstile/reCAPTCHA DOM challenges or HTTP status codes (403/503).
+          - Pause execution, trigger an external solver API, and inject solved tokens/cookies back into current browser storage or headers.
+          EOF
+
+          # 8. Deep Link URI Parser Definition
+          cat > .atx/deeplink-intent-parser.md << 'EOF'
+          # Transformation Specification: Android Deep Link & Parameter Parser
+
+          ## Objective
+          Implement robust URI deep-link parsing, query extraction, and state navigation across Android Activity/Compose routes.
+
+          ## Specifications
+          - Parse custom scheme and HTTPS URIs from intent data safely.
+          - Extract, sanitize, and type-check query parameters before passing them to ViewModels.
+          - Auto-fill state fields and trigger Luhn validation on credit card parameters passed via URIs.
+          - Add fallback navigation routes when deep-link parameters are missing or invalid.
+          EOF
+
+          # 9. Room to Encrypted SQLCipher Definition
+          cat > .atx/room-sqlcipher-migration.md << 'EOF'
+          # Transformation Specification: Encrypted Room Database Migration
+
+          ## Objective
+          Migrate raw SQLite or unencrypted Room databases to encrypted SQLCipher with Android Keystore integration.
+
+          ## Specifications
+          - Update `Room.databaseBuilder` to attach a `SupportFactory` backed by SQLCipher.
+          - Fetch database encryption keys dynamically from Android `KeyStore`.
+          - Create explicit migration strategies (`Migration(1, 2)`) for schema updates without data loss.
+          - Ensure all DAO methods return `Flow<T>` or `suspend` functions.
+          EOF
+
+          # 10. SharedPreferences to Proto DataStore Definition
+          cat > .atx/sharedprefs-to-datastore.md << 'EOF'
+          # Transformation Specification: SharedPreferences to Encrypted Proto DataStore
+
+          ## Objective
+          Replace legacy `SharedPreferences` with Jetpack Proto DataStore.
+
+          ## Specifications
+          - Define Protocol Buffers schemas (`.proto`) for application configuration and user profiles.
+          - Write migration code using `SharedPreferencesMigration`.
+          - Replace synchronous `.getString()` / `.edit()` with asynchronous `DataStore<T>.data` `Flow` emissions and `.updateData()` transforms.
+          EOF
+
+          # 11. WebSocket to SSE Definition
+          cat > .atx/websocket-to-sse.md << 'EOF'
+          # Transformation Specification: Real-Time SSE Client Engine
+
+          ## Objective
+          Convert bi-directional WebSocket connections to lightweight HTTP Server-Sent Events (SSE) streams for real-time telemetry logs.
+
+          ## Specifications
+          - Implement SSE handling using OkHttp's `EventSource` and `EventSourceListener`.
+          - Auto-reconnect with exponential backoff on network dropouts, preserving the `Last-Event-ID` header.
+          - Stream incoming event streams into Kotlin `SharedFlow` or `StateFlow` primitives.
+          EOF
+
+          # 12. OAuth2 PKCE Flow Definition
+          cat > .atx/oauth2-pkce-implementation.md << 'EOF'
+          # Transformation Specification: OAuth2 Authorization Code Flow with PKCE
+
+          ## Objective
+          Implement secure OAuth2 authentication using Proof Key for Code Exchange (PKCE) for mobile/native clients.
+
+          ## Specifications
+          - Generate cryptographically secure `code_verifier` strings and compute SHA-256 `code_challenge`.
+          - Store access tokens, refresh tokens, and expiration metadata in Android `KeyStore`.
+          - Implement an OkHttp `Authenticator` that automatically intercepts HTTP 401s, executes token refresh calls, and retries original requests seamlessly.
+          EOF
+
+          # 13. Webhook Telemetry Logger Definition
+          cat > .atx/webhook-telemetry-logger.md << 'EOF'
+          # Transformation Specification: Async Non-Blocking Telemetry Webhooks
+
+          ## Objective
+          Implement a multi-platform background logging engine that formats system errors into Discord and Slack rich embeds.
+
+          ## Specifications
+          - Format JSON payloads matching Discord (`embeds`) and Slack (`blocks`) API constraints.
+          - Execute network operations non-blockingly using `Dispatchers.IO` with fire-and-forget fault tolerance.
+          - Throttle log transmissions to avoid hitting rate limits.
+          EOF
+
+          # 14. WorkManager CoroutineWorker Definition
+          cat > .atx/workmanager-coroutine-worker.md << 'EOF'
+          # Transformation Specification: Legacy Service to WorkManager CoroutineWorker
+
+          ## Objective
+          Refactor background `IntentService` or `JobScheduler` code into Jetpack `WorkManager` utilizing `CoroutineWorker`.
+
+          ## Specifications
+          - Replace `Worker` or `IntentService` with `CoroutineWorker` overriding `doWork()`.
+          - Add explicit battery, network (`NetworkType.CONNECTED`), and storage constraints using `Constraints.Builder`.
+          - Handle execution retry policies with exponential backoff (`BackoffPolicy.EXPONENTIAL`).
+          EOF
+
+          # 15. Type-Safe Compose Navigation Definition
+          cat > .atx/compose-typesafe-navigation.md << 'EOF'
+          # Transformation Specification: Type-Safe Jetpack Compose Navigation
+
+          ## Objective
+          Upgrade string-route based Navigation Compose to Android's type-safe `@Serializable` destination routes.
+
+          ## Specifications
+          - Define navigation routes as Kotlin `@Serializable` objects and data classes instead of raw URL string paths.
+          - Replace `navController.navigate("route_name/123")` with type-safe instances like `navController.navigate(ProfileRoute(id = 123))`.
+          - Extract route parameters safely inside `composable<ProfileRoute>` scope without string parsing.
+          EOF
+
+          # 16. Strict No-Brevity, No-Stubs, No-Placeholders Rule Definition
+          cat > .atx/strict-no-stubs-no-placeholders.md << 'EOF'
+          # Transformation Specification: Zero Stubs, Zero Placeholders & Full Implementation Standard
+
+          ## Executive Objective
+          Scan every file across the codebase and replace all stubbed logic, partial code implementations, mock return statements, placeholder strings, and comments indicating pending work with fully functional implementations.
+
+          ## Mandates & Constraints
+          - **Forbidden Patterns:** Ban and eliminate `TODO`, `FIXME`, `NOT_IMPLEMENTED`, `TODO()`, `throw NotImplementedError()`, empty functions, empty lambdas `{ }`, and hardcoded placeholder strings.
+          - **No Code Truncation / No Brevity:** Every generated file must be fully written out from package header to closing brace. Do NOT omit methods, drop import blocks, or use comments like "[omitted for brevity]".
+          - **Real Execution Mechanics:**
+            - Replace fake/simulated network calls (`delay(1000)`) with real OkHttp3 execution pipelines.
+            - Replace mock list generators (`listOf("Item 1", "Item 2")`) with dynamic repository fetching and state flow emissions.
+            - Ensure every UI component, ViewModel method, Interceptor, and worker contains complete error-handling logic with proper exceptions, retries, and state emissions.
+          EOF
 
       - name: Run AWS Transform Pipeline
         env:
           ATX_PROFILE_ARN: ${{ secrets.ATX_PROFILE_ARN }}
+          ATX_TENANT_ID: ${{ secrets.ATX_TENANT_ID }}
+        run: |
+          BUILD_CMD="./gradlew assembleDebug --build-cache --parallel --no-daemon"
+
+          for def_file in .atx/*.md; do
+            def_name=$(basename "$def_file" .md)
+            echo "=========================================================="
+            echo " Executing Transformation: $def_name"
+            echo "=========================================================="
+
+            atx custom def exec \
+              --profile-arn "$ATX_PROFILE_ARN" \
+              --tenant-id "$ATX_TENANT_ID" \
+              --transformation-name "$def_name" \
+              --transformation-definition-path "$def_file" \
+              --code-repository-path "." \
+              --build-command "$BUILD_CMD" \
+              --non-interactive \
+              --trust-all-tools
+          done
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --build-cache --parallel --no-daemon
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --no-daemon
+        continue-on-error: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: app/build/reports/tests/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: orchestrator-pro-transformed-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
+
+      - name: Commit transformed code
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH_NAME="transform/comprehensive-rewrite-${{ github.run_number }}"
+          git checkout -b "$BRANCH_NAME"
+
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes detected following transformation execution."
+          else
+            git commit -m "feat: apply comprehensive transformations via AWS Transform
+
+Run: ${{ github.run_number }} | $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push origin "$BRANCH_NAME"
+          fi
+
+      - name: Create Pull Request
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: transform/comprehensive-rewrite-${{ github.run_number }}
+          title: "AWS Transform: Comprehensive Code Modernization (Run #${{ github.run_number }})"
+          body: |
+            ## Automated Comprehensive Modernization - Orchestrator Pro
+
+            Executed 16 custom transformations via **AWS Transform Custom** (`atx`):
+            - **Strict Code Completeness:** Enforced zero stubs, zero placeholders, and full non-truncated source code implementations.
+            - **HMAC & Anti-Fingerprinting:** Direct API signing, dynamic route interception, and TLS/JA4 browser alignment.
+            - **UI Modernization:** Material 3 upgrade and type-safe Jetpack Compose navigation.
+            - **Networking & Automation:** Retrofit-to-OkHttp refactoring, Playwright Kotlin port, proxy/CAPTCHA solving, and SSE stream engine.
+            - **Security & Storage:** SQLCipher encrypted Room DB, Proto DataStore, deep-link URI parsing, and OAuth2 PKCE auth flow.
+            - **Background Work & Telemetry:** CoroutineWorker migration and async Discord/Slack webhook logger.
+
+            Review the refactored code before merging into `main`.
+          labels: |
+            aws-transform
+            automated
+            comprehensive-rewrite
           ATX_TENANT_ID: ${{ secrets.ATX_TENANT_ID }}
         run: |
           BUILD_CMD="./gradlew assembleDebug --build-cache --parallel --no-daemon"
